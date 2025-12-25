@@ -1,0 +1,4271 @@
+--- Entry #1 ---
+Question: What is Iyer's record against Hazlewood?
+SQL: SELECT T2."player_name", SUM(T1."runs_scored") AS "total_runs", COUNT(T1."delivery_id") AS "balls_faced", SUM(CASE WHEN T1."player_out_id" = T1."striker_id" AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') THEN 1 ELSE 0 END) AS "dismissals" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN Players AS T3 ON T1."bowler_id" = T3."player_id" WHERE T2."player_name" LIKE '%Iyer' AND T3."player_name" LIKE '%Hazlewood' GROUP BY T2."player_name"
+Result: [SUCCESS]
+[('SS Iyer', 11, 22, 4), ('VR Iyer', 22, 13, 0)]
+
+--- Entry #2 ---
+Question: List Shepherd's stats in overs 19-20 while batting(runs, balls, dismissals, strike rate, fours and sixes)
+SQL: SELECT
+  SUM(T1.runs_scored) AS "Runs",
+  COUNT(T1.delivery_id) AS "Balls",
+  SUM(CASE WHEN T1.player_out_id = T2.player_id THEN 1 ELSE 0 END) AS "Dismissals",
+  SUM(CASE WHEN T1.runs_scored = 4 THEN 1 ELSE 0 END) AS "Fours",
+  SUM(CASE WHEN T1.runs_scored = 6 THEN 1 ELSE 0 END) AS "Sixes",
+  CAST(SUM(T1.runs_scored) AS REAL) * 100 / COUNT(T1.delivery_id) AS "Strike_Rate"
+FROM Deliveries AS T1
+INNER JOIN Players AS T2
+  ON T1.striker_id = T2.player_id
+WHERE
+  T2.player_name LIKE 'R Shepherd%' AND T1.over_number >= 18 AND NOT (
+    T1.extra_runs > 0 AND T1.runs_scored = 0 AND T1.wicket_type IS NULL
+  );
+Result: [SUCCESS]
+[(140, 47, 3, 11, 14, 297.8723404255319)]
+
+--- Entry #3 ---
+Question: List all batsmen with at least 1000 runs against any team in ipl.
+SQL: SELECT
+  "striker",
+  CASE
+    WHEN "bowling_team" = 'Deccan Chargers'
+    OR "bowling_team" = 'Sunrisers Hyderabad' THEN 'Hyderabad'
+    WHEN "bowling_team" = 'Delhi Daredevils'
+    OR "bowling_team" = 'Delhi Capitals' THEN 'Delhi'
+    WHEN "bowling_team" = 'Kings XI Punjab'
+    OR "bowling_team" = 'Punjab Kings' THEN 'Punjab'
+    WHEN "bowling_team" = 'Pune Warriors'
+    OR "bowling_team" = 'Rising Pune Supergiant'
+    OR "bowling_team" = 'Rising Pune Supergiants' THEN 'Pune'
+    ELSE "bowling_team"
+  END AS Opponent,
+  SUM("runs_scored") AS TotalRuns
+FROM "Deliveries"
+GROUP BY
+  "striker",
+  Opponent
+HAVING
+  SUM("runs_scored") >= 1000
+ORDER BY
+  TotalRuns DESC;
+Result: [SUCCESS]
+[('striker', 'Mumbai Indians', 41584), ('striker', 'Hyderabad', 41275), ('striker', 'Punjab', 40715), ('striker', 'Delhi', 40444), ('striker', 'Kolkata Knight Riders', 39312), ('striker', 'Chennai Super Kings', 37704), ('striker', 'Royal Challengers Bangalore', 35941), ('striker', 'Rajasthan Royals', 35853), ('striker', 'Pune', 10852), ('striker', 'Gujarat Titans', 9918), ('striker', 'Lucknow Super Giants', 9699), ('striker', 'Royal Challengers Bengaluru', 5178), ('striker', 'Gujarat Lions', 4902), ('striker', 'Kochi Tuskers Kerala', 1876)]
+
+--- Entry #4 ---
+Question: how many players have taken 20+ wickets for all punjab franchises in an ipl edition, list them with number of wickets taken by them
+SQL: SELECT T1."bowler", COUNT(T1."delivery_id") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" WHERE T1."bowling_team" LIKE '%Punjab%' AND T1."wicket_type" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field') GROUP BY T2."season", T1."bowler" HAVING COUNT(T1."delivery_id") >= 20 ORDER BY COUNT(T1."delivery_id") DESC
+Result: [ERROR]
+no such column: T1.bowler
+
+--- Entry #5 ---
+Question: which player(s) have been the part playing eleven of most ipl finals wins?(list the top 5 of ranked)
+SQL: SELECT T1.player_name, count(*) FROM PlayerInMatch AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T2.stage = 'Final' AND T1.team_name = T2.match_winner GROUP BY T1.player_name ORDER BY count(*) DESC LIMIT 5
+Result: [ERROR]
+no such column: T1.player_name
+
+--- Entry #6 ---
+Question: Which ipl season had the highest runs scored per over and how much was it?
+SQL: SELECT T2.season, CAST(SUM(T1.runs_scored + T1.extra_runs) AS REAL) * 6 / COUNT(T1.delivery_id) AS runs_per_over FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id GROUP BY T2.season ORDER BY runs_per_over DESC LIMIT 1
+Result: [SUCCESS]
+[('2025', 9.199279990709558)]
+
+--- Entry #7 ---
+Question: which ipl saw the most sixes and fours being hit and how many were there individually?
+SQL: SELECT T1.season, SUM(CASE WHEN T2.runs_scored = 4 THEN 1 ELSE 0 END), SUM(CASE WHEN T2.runs_scored = 6 THEN 1 ELSE 0 END) FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id GROUP BY T1.season ORDER BY SUM(CASE WHEN T2.runs_scored = 4 THEN 1 ELSE 0 END) + SUM(CASE WHEN T2.runs_scored = 6 THEN 1 ELSE 0 END) DESC LIMIT 1
+Result: [SUCCESS]
+[('2025', 2251, 1296)]
+
+--- Entry #8 ---
+Question: list the count of 200+ totals in every ipl season
+SQL: SELECT T2.season, count(T1.match_id) FROM (SELECT match_id, inning FROM Deliveries GROUP BY match_id, inning HAVING sum(runs_scored + extra_runs) >= 200) AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id GROUP BY T2.season ORDER BY count(T1.match_id) DESC LIMIT 5
+Result: [SUCCESS]
+[('2025', 52), ('2024', 41), ('2023', 37), ('2022', 18), ('2018', 15)]
+
+--- Entry #9 ---
+Question: which team has lost the most ipl finals
+SQL: SELECT CASE WHEN "team1" = "match_winner" THEN "team2" ELSE "team1" END, COUNT(*) FROM "Matches" WHERE "stage" = 'Final' GROUP BY 1 ORDER BY COUNT(*) DESC LIMIT 1
+Result: [SUCCESS]
+[('Chennai Super Kings', 5)]
+
+--- Entry #10 ---
+Question: which team has played the most ipl finals and how many has it played?
+SQL: SELECT T1.team, COUNT(*) FROM (SELECT "team1" AS team FROM "Matches" WHERE "stage" = 'Final' UNION ALL SELECT "team2" AS team FROM "Matches" WHERE "stage" = 'Final') AS T1 GROUP BY T1.team ORDER BY COUNT(*) DESC LIMIT 1
+Result: [SUCCESS]
+[('Chennai Super Kings', 10)]
+
+--- Entry #11 ---
+Question: Which player has won the most player of the match awards in ipl finals, list the match in which they them?
+SQL: SELECT "player_of_match", "season", "venue" FROM "Matches" WHERE "stage" = 'Final' AND "player_of_match" = (SELECT "player_of_match" FROM "Matches" WHERE "stage" = 'Final' GROUP BY "player_of_match" ORDER BY count(*) DESC LIMIT 1)
+Result: [SUCCESS]
+[('player_of_match', '2007/08', 'Dr DY Patil Sports Academy'), ('player_of_match', '2009', 'New Wanderers Stadium'), ('player_of_match', '2009/10', 'Dr DY Patil Sports Academy'), ('player_of_match', '2011', 'MA Chidambaram Stadium, Chepauk'), ('player_of_match', '2012', 'MA Chidambaram Stadium, Chepauk'), ('player_of_match', '2013', 'Eden Gardens'), ('player_of_match', '2014', 'M Chinnaswamy Stadium'), ('player_of_match', '2015', 'Eden Gardens'), ('player_of_match', '2016', 'M Chinnaswamy Stadium'), ('player_of_match', '2017', 'Rajiv Gandhi International Stadium, Uppal'), ('player_of_match', '2018', 'Wankhede Stadium'), ('player_of_match', '2019', 'Rajiv Gandhi International Stadium'), ('player_of_match', '2020/21', 'Dubai International Cricket Stadium'), ('player_of_match', '2021', 'Dubai International Cricket Stadium'), ('player_of_match', '2022', 'Narendra Modi Stadium, Ahmedabad'), ('player_of_match', '2023', 'Narendra Modi Stadium, Ahmedabad'), ('player_of_match', '2024', 'MA Chidambaram Stadium, Chepauk, Chennai'), ('player_of_match', '2025', 'Narendra Modi Stadium, Ahmedabad')]
+
+--- Entry #12 ---
+Question: List the narrowest wins by runs in ipl playoffs?
+SQL: SELECT "team1", "team2", "match_winner", "result_margin" FROM "Matches" WHERE "stage" != 'Group' AND "result_type" = 'runs' ORDER BY "result_margin" ASC LIMIT 5
+Result: [SUCCESS]
+[('Mumbai Indians', 'Rising Pune Supergiant', 'Mumbai Indians', 1), ('Mumbai Indians', 'Chennai Super Kings', 'Mumbai Indians', 1), ('Royal Challengers Bangalore', 'Deccan Chargers', 'Deccan Chargers', 6), ('Royal Challengers Bengaluru', 'Punjab Kings', 'Royal Challengers Bengaluru', 6), ('Royal Challengers Bangalore', 'Sunrisers Hyderabad', 'Sunrisers Hyderabad', 8)]
+
+--- Entry #13 ---
+Question: How many matches have been won by mumbai in ahmedabad?List both the teams with their scores.
+SQL: WITH TeamScores AS (
+  SELECT
+    "match_id",
+    "batting_team",
+    SUM("runs_scored" + "extra_runs") AS total_runs
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "batting_team"
+)
+SELECT
+  T1."batting_team" AS "Team1",
+  T1.total_runs AS "Team1_Score",
+  T2."batting_team" AS "Team2",
+  T2.total_runs AS "Team2_Score"
+FROM "Matches" AS M
+JOIN TeamScores AS T1
+  ON M."match_id" = T1."match_id" AND M."team1" = T1."batting_team"
+JOIN TeamScores AS T2
+  ON M."match_id" = T2."match_id" AND M."team2" = T2."batting_team"
+WHERE
+  M."city" = 'Ahmedabad' AND M."match_winner" = 'Mumbai Indians';
+Result: [SUCCESS]
+[('Rajasthan Royals', 153, 'Mumbai Indians', 178)]
+
+--- Entry #14 ---
+Question: List the most sixes hit by a punjab batter in a season.
+SQL: SELECT
+  T3."player_name",
+  T2."season",
+  COUNT(T1."delivery_id") AS "number_of_sixes"
+FROM "Deliveries" AS T1
+INNER JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id"
+INNER JOIN "Players" AS T3
+  ON T1."striker_id" = T3."player_id"
+WHERE
+  T1."batting_team" IN ('Kings XI Punjab', 'Punjab Kings') AND T1."runs_scored" = 6
+GROUP BY
+  T2."season",
+  T3."player_name"
+ORDER BY
+  "number_of_sixes" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('SS Iyer', '2025', 39), ('GJ Maxwell', '2014', 36), ('CH Gayle', '2019', 34), ('LS Livingstone', '2022', 34), ('KL Rahul', '2018', 32)]
+
+--- Entry #15 ---
+Question: List the matches in which bumrah went wicketless.
+SQL: SELECT T1.venue, T1.match_date FROM Matches AS T1 INNER JOIN PlayerInMatch AS T2 ON T1.match_id = T2.match_id INNER JOIN Players AS T3 ON T2.player_id = T3.player_id WHERE T3.player_name = 'JJ Bumrah' AND T1.match_id NOT IN (SELECT T4.match_id FROM Deliveries AS T4 INNER JOIN Players AS T5 ON T4.bowler_id = T5.player_id WHERE T5.player_name = 'JJ Bumrah' AND T4.wicket_type IS NOT NULL AND T4.wicket_type NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')) ORDER BY T1.match_date DESC LIMIT 5
+Result: [SUCCESS]
+[('Narendra Modi Stadium, Ahmedabad', '2025-06-01'), ('Wankhede Stadium, Mumbai', '2025-04-07'), ('Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', '2024-04-30'), ('Sawai Mansingh Stadium, Jaipur', '2024-04-22'), ('Wankhede Stadium, Mumbai', '2024-04-14')]
+
+--- Entry #16 ---
+Question: Out of bowlers who have played atleat 50 matches, list the bowlers who have the most instances of taking atleast one wicket in a match.
+SQL: SELECT T2.player_name, COUNT(T1.match_id) FROM (SELECT DISTINCT match_id, bowler_id FROM Deliveries WHERE wicket_type IS NOT NULL AND wicket_type NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')) AS T1 INNER JOIN Players AS T2 ON T1.bowler_id = T2.player_id WHERE T1.bowler_id IN (SELECT player_id FROM PlayerInMatch GROUP BY player_id HAVING COUNT(match_id) >= 50) GROUP BY T2.player_name ORDER BY COUNT(T1.match_id) DESC LIMIT 5
+Result: [SUCCESS]
+[('YS Chahal', 129), ('R Ashwin', 129), ('PP Chawla', 126), ('B Kumar', 123), ('SP Narine', 117)]
+
+--- Entry #17 ---
+Question: List all instances of a knockout match where a team scored 200+ but none of the players scored a half century.
+SQL: SELECT T2."match_date", T2."venue", T1."batting_team", SUM(T1."runs_scored" + T1."extra_runs") AS "total_runs" FROM "Deliveries" AS T1 INNER JOIN "Matches" AS T2 ON T1."match_id" = T2."match_id" WHERE T2."stage" != 'Group' GROUP BY T1."match_id", T1."inning", T1."batting_team" HAVING SUM(T1."runs_scored" + T1."extra_runs") >= 200 AND NOT EXISTS (SELECT 1 FROM "Deliveries" AS D2 WHERE D2."match_id" = T1."match_id" AND D2."inning" = T1."inning" GROUP BY D2."striker_id" HAVING SUM(D2."runs_scored") >= 50) ORDER BY T2."match_date" DESC
+Result: [SUCCESS]
+[('2025-06-01', 'Narendra Modi Stadium, Ahmedabad', 'Mumbai Indians', 203)]
+
+--- Entry #18 ---
+Question: Who was the leading run-getter in death overs of ipl 2025?List his runs in this phase and the balls played in the phase.
+SQL: SELECT T3."player_name", SUM(T1."runs_scored") AS "total_runs", COUNT(T1."delivery_id") AS "balls_played" FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."striker_id" = T3."player_id" WHERE T2."season" = '2025' AND T1."over_number" >= 16 GROUP BY T3."player_name" ORDER BY "total_runs" DESC LIMIT 1;
+Result: [SUCCESS]
+[('Shashank Singh', 202, 106)]
+
+--- Entry #19 ---
+Question: List all IPL playoff matches with total runs over 400.
+SQL: SELECT
+  T1.season,
+  T1.match_date,
+  T1.venue,
+  T1.team1,
+  T1.team2,
+  SUM(T2.runs_scored + T2.extra_runs) AS total_runs
+FROM Matches AS T1
+JOIN Deliveries AS T2
+  ON T1.match_id = T2.match_id
+WHERE
+  T1.stage <> 'Group'
+GROUP BY
+  T1.match_id
+HAVING
+  total_runs > 400
+ORDER BY
+  total_runs DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('2025', '2025-05-30', 'Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh', 'Mumbai Indians', 'Gujarat Titans', 436), ('2014', '2014-05-30', 'Wankhede Stadium', 'Chennai Super Kings', 'Kings XI Punjab', 428), ('2025', '2025-06-01', 'Narendra Modi Stadium, Ahmedabad', 'Mumbai Indians', 'Punjab Kings', 410), ('2016', '2016-05-29', 'M Chinnaswamy Stadium', 'Royal Challengers Bangalore', 'Sunrisers Hyderabad', 408), ('2023', '2023-05-26', 'Narendra Modi Stadium, Ahmedabad', 'Gujarat Titans', 'Mumbai Indians', 404)]
+
+--- Entry #20 ---
+Question: Show players who scored more than 750 runs in a single IPL season.
+SQL: SELECT
+  T3."player_name",
+  T2."season",
+  SUM(T1."runs_scored")
+FROM Deliveries AS T1
+INNER JOIN Matches AS T2
+  ON T1."match_id" = T2."match_id"
+INNER JOIN Players AS T3
+  ON T1."striker_id" = T3."player_id"
+GROUP BY
+  T2."season",
+  T3."player_name"
+HAVING
+  SUM(T1."runs_scored") > 750
+ORDER BY
+  SUM(T1."runs_scored") DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('V Kohli', '2016', 973), ('Shubman Gill', '2023', 890), ('JC Buttler', '2022', 863), ('DA Warner', '2016', 848), ('B Sai Sudharsan', '2025', 759)]
+
+--- Entry #21 ---
+Question: Show MI’s IPL playoff record when batting first and when fielding first.
+SQL: SELECT
+  CASE
+    WHEN (T1.toss_winner = 'Mumbai Indians' AND T1.toss_decision = 'bat') OR (T1.toss_winner <> 'Mumbai Indians' AND T1.toss_decision = 'field')
+    THEN 'Batting First'
+    ELSE 'Fielding First'
+  END AS "MI_Action",
+  COUNT(T1.match_id) AS "Matches_Played",
+  SUM(CASE WHEN T1.match_winner = 'Mumbai Indians' THEN 1 ELSE 0 END) AS "Wins",
+  SUM(CASE WHEN T1.match_winner <> 'Mumbai Indians' AND T1.match_winner IS NOT NULL THEN 1 ELSE 0 END) AS "Losses"
+FROM "Matches" AS T1
+WHERE
+  (T1.team1 = 'Mumbai Indians' OR T1.team2 = 'Mumbai Indians') AND T1.stage <> 'Group'
+GROUP BY
+  "MI_Action";
+Result: [SUCCESS]
+[('Batting First', 11, 9, 2), ('Fielding First', 11, 5, 6)]
+
+--- Entry #22 ---
+Question: Count MI’s total wins in IPL playoffs since 2015.
+SQL: SELECT count(*) FROM Matches WHERE match_winner = 'Mumbai Indians' AND stage != 'Group' AND CAST(substr(season, 1, 4) AS INTEGER) >= 2015
+Result: [SUCCESS]
+[(10,)]
+
+--- Entry #23 ---
+Question: Show Bumrah’s bowling stats in overs 7 to 15 in IPL 2025.
+SQL: SELECT
+  SUM(T1."runs_scored" + T1."extra_runs") AS "Runs Conceded",
+  COUNT(
+    CASE
+      WHEN T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field') AND T1."player_out_id" IS NOT NULL
+      THEN 1
+    END
+  ) AS "Wickets",
+  CAST(COUNT(T1."delivery_id") AS REAL) / 6.0 AS "Overs Bowled",
+  CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) * 6.0 / NULLIF(COUNT(T1."delivery_id"), 0) AS "Economy Rate",
+  CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) / NULLIF(COUNT(
+    CASE
+      WHEN T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field') AND T1."player_out_id" IS NOT NULL
+      THEN 1
+    END
+  ), 0) AS "Average",
+  CAST(COUNT(T1."delivery_id") AS REAL) / NULLIF(COUNT(
+    CASE
+      WHEN T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field') AND T1."player_out_id" IS NOT NULL
+      THEN 1
+    END
+  ), 0) AS "Strike Rate"
+FROM Deliveries AS T1
+INNER JOIN Matches AS T2
+  ON T1."match_id" = T2."match_id"
+INNER JOIN Players AS T3
+  ON T1."bowler_id" = T3."player_id"
+WHERE
+  T3."player_name" = 'JJ Bumrah' AND T2."season" = '2025' AND T1."over_number" BETWEEN 6 AND 14;
+Result: [SUCCESS]
+[(84, 4, 16.166666666666668, 5.195876288659794, 21.0, 24.25)]
+
+--- Entry #24 ---
+Question: Among all bowlers with at least 3 overs in overs 7–15 in IPL 2025, find those with economy rate under 6.
+SQL: SELECT T3."player_name", CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) * 6.0 / COUNT(T1."delivery_id") AS "economy_rate" FROM "Deliveries" AS T1 JOIN "Matches" AS T2 ON T1."match_id" = T2."match_id" JOIN "Players" AS T3 ON T1."bowler_id" = T3."player_id" WHERE T2."season" = '2025' AND T1."over_number" BETWEEN 6 AND 14 GROUP BY T1."bowler_id" HAVING COUNT(T1."delivery_id") >= 18 AND (CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) * 6.0 / COUNT(T1."delivery_id")) < 6 ORDER BY "economy_rate" ASC LIMIT 5
+Result: [SUCCESS]
+[('JJ Bumrah', 5.195876288659794)]
+
+--- Entry #25 ---
+Question: Show GT’s batting stats in overs 7 to 15 in IPL 2025 — total runs, run rate, wickets lost, average, and dot-ball percentage.
+SQL: SELECT SUM(T1."runs_scored"), CAST(SUM(T1."runs_scored") AS REAL) * 6 / COUNT(T1."delivery_id"), COUNT(T1."player_out_id"), CAST(SUM(T1."runs_scored") AS REAL) / NULLIF(COUNT(T1."player_out_id"), 0), CAST(SUM(CASE WHEN T1."runs_scored" = 0 THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T1."delivery_id") FROM "Deliveries" AS T1 INNER JOIN "Matches" AS T2 ON T1."match_id" = T2."match_id" WHERE T2."season" = '2025' AND T1."batting_team" = 'Gujarat Titans' AND T1."over_number" BETWEEN 6 AND 14
+Result: [SUCCESS]
+[(1299, 9.201889020070839, 24, 54.125, 27.03659976387249)]
+
+--- Entry #26 ---
+Question: Compare GT’s batting average and run rate in overs 7–15 with all other teams in IPL 2025.
+SQL: SELECT
+  CASE
+    WHEN T1."batting_team" = 'Gujarat Titans'
+    THEN 'Gujarat Titans'
+    ELSE 'Other Teams'
+  END AS "team_category",
+  CAST(SUM(T1."runs_scored") AS REAL) / NULLIF(COUNT(CASE WHEN T1."player_out_id" IS NOT NULL THEN 1 END), 0) AS "batting_average",
+  CAST(SUM(T1."runs_scored") AS REAL) * 6 / COUNT(T1."delivery_id") AS "run_rate"
+FROM "Deliveries" AS T1
+INNER JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T2."season" = '2025' AND T1."over_number" BETWEEN 6 AND 14
+GROUP BY
+  "team_category";
+Result: [SUCCESS]
+[('Gujarat Titans', 54.125, 9.201889020070839), ('Other Teams', 30.325077399380806, 8.250737048996209)]
+
+--- Entry #27 ---
+Question: List all IPL bowlers with most first-over wickets since 2020.
+SQL: SELECT T2."player_name", COUNT(T1."delivery_id") FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T3."season" >= '2020' AND T1."over_number" = 0 AND T1."player_out_id" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field') GROUP BY T2."player_name" ORDER BY COUNT(T1."delivery_id") DESC LIMIT 5
+Result: [SUCCESS]
+[('TA Boult', 32), ('Mohammed Siraj', 11), ('B Kumar', 10), ('Mohammed Shami', 9), ('DL Chahar', 9)]
+
+--- Entry #28 ---
+Question: Show the bowler with the most first-over wickets in IPL history.
+SQL: SELECT T2."player_name", COUNT(T1."delivery_id") FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" WHERE T1."over_number" = 0 AND T1."wicket_type" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field') GROUP BY T2."player_name" ORDER BY COUNT(T1."delivery_id") DESC LIMIT 1
+Result: [SUCCESS]
+[('TA Boult', 32)]
+
+--- Entry #29 ---
+Question: Show players with the most 25-plus scores in Men’s T20 competitions.
+SQL: WITH PlayerScores AS (
+  SELECT
+    "striker_id",
+    SUM("runs_scored") AS "total_runs"
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "striker_id"
+)
+SELECT
+  p."player_name",
+  COUNT(ps."striker_id") AS "num_25_plus_scores"
+FROM PlayerScores AS ps
+JOIN "Players" AS p
+  ON ps."striker_id" = p."player_id"
+WHERE
+  ps."total_runs" >= 25
+GROUP BY
+  p."player_name"
+ORDER BY
+  "num_25_plus_scores" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('V Kohli', 137), ('RG Sharma', 114), ('S Dhawan', 113), ('DA Warner', 103), ('MS Dhoni', 98)]
+
+--- Entry #30 ---
+Question: List players with 300 or more sixes in IPL.
+SQL: SELECT T2."player_name", COUNT(T1."delivery_id") FROM "Deliveries" AS T1 INNER JOIN "Players" AS T2 ON T1."striker_id" = T2."player_id" WHERE T1."runs_scored" = 6 GROUP BY T2."player_name" HAVING COUNT(T1."delivery_id") >= 300 ORDER BY COUNT(T1."delivery_id") DESC LIMIT 5
+Result: [SUCCESS]
+[('CH Gayle', 359), ('RG Sharma', 303)]
+
+--- Entry #31 ---
+Question: Show MI’s highest opening partnerships in IPL playoffs.
+SQL: WITH MI_Playoff_Innings AS (
+  SELECT DISTINCT
+    T1.match_id,
+    T2.inning
+  FROM Matches AS T1
+  INNER JOIN Deliveries AS T2
+    ON T1.match_id = T2.match_id
+  WHERE
+    T1.stage <> 'Group' AND T2.batting_team = 'Mumbai Indians'
+), First_Wicket_Deliveries AS (
+  SELECT
+    match_id,
+    inning,
+    MIN(delivery_id) AS first_wicket_delivery
+  FROM Deliveries
+  WHERE
+    player_out_id IS NOT NULL
+  GROUP BY
+    match_id,
+    inning
+), Opening_Partnerships AS (
+  SELECT
+    T1.match_id,
+    T1.inning,
+    SUM(T3.runs_scored + T3.extra_runs) AS partnership_runs
+  FROM MI_Playoff_Innings AS T1
+  LEFT JOIN First_Wicket_Deliveries AS T2
+    ON T1.match_id = T2.match_id AND T1.inning = T2.inning
+  INNER JOIN Deliveries AS T3
+    ON T1.match_id = T3.match_id AND T1.inning = T3.inning
+  WHERE
+    T3.delivery_id < T2.first_wicket_delivery OR T2.first_wicket_delivery IS NULL
+  GROUP BY
+    T1.match_id,
+    T1.inning
+), Opening_Batsmen AS (
+  SELECT
+    match_id,
+    inning,
+    striker_id,
+    non_striker_id
+  FROM Deliveries
+  WHERE
+    over_number = 0 AND ball_number = 1
+)
+SELECT
+  p1.player_name AS "Batsman 1",
+  p2.player_name AS "Batsman 2",
+  op.partnership_runs AS "Partnership Runs",
+  CASE WHEN m.team1 = 'Mumbai Indians' THEN m.team2 ELSE m.team1 END AS "Opponent",
+  m.match_date AS "Match Date"
+FROM Opening_Partnerships AS op
+INNER JOIN Opening_Batsmen AS ob
+  ON op.match_id = ob.match_id AND op.inning = ob.inning
+INNER JOIN Matches AS m
+  ON op.match_id = m.match_id
+INNER JOIN Players AS p1
+  ON ob.striker_id = p1.player_id
+INNER JOIN Players AS p2
+  ON ob.non_striker_id = p2.player_id
+ORDER BY
+  "Partnership Runs" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('LMP Simmons', 'PA Patel', 90, 'Chennai Super Kings', '2015-05-19'), ('RG Sharma', 'JM Bairstow', 84, 'Gujarat Titans', '2025-05-30'), ('AC Blizzard', 'SR Tendulkar', 81, 'Kolkata Knight Riders', '2011-05-25'), ('LMP Simmons', 'MEK Hussey', 76, 'Chennai Super Kings', '2014-05-28'), ('DR Smith', 'AP Tare', 70, 'Rajasthan Royals', '2013-05-24')]
+
+--- Entry #32 ---
+Question: List matches where MI scored 80 or more runs for the first wicket in IPL playoffs.
+SQL: WITH MI_Playoff_Deliveries AS (
+  SELECT
+    T1."match_id",
+    T1."inning",
+    T1."runs_scored",
+    T1."extra_runs",
+    SUM(CASE WHEN T1."player_out_id" IS NOT NULL THEN 1 ELSE 0 END) OVER (PARTITION BY T1."match_id", T1."inning" ORDER BY T1."over_number", T1."ball_number") AS wicket_group
+  FROM "Deliveries" AS T1
+  INNER JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+  WHERE
+    T2."stage" != 'Group' AND T1."batting_team" = 'Mumbai Indians'
+), First_Wicket_Partnerships AS (
+  SELECT
+    "match_id",
+    "inning",
+    SUM("runs_scored" + "extra_runs") AS first_wicket_runs
+  FROM MI_Playoff_Deliveries
+  WHERE
+    wicket_group = 0
+  GROUP BY
+    "match_id",
+    "inning"
+)
+SELECT
+  T1."match_date",
+  T1."venue",
+  CASE
+    WHEN T1."team1" = 'Mumbai Indians' THEN T1."team2"
+    ELSE T1."team1"
+  END AS opponent,
+  T2.first_wicket_runs
+FROM "Matches" AS T1
+INNER JOIN First_Wicket_Partnerships AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T2.first_wicket_runs >= 80
+ORDER BY
+  T2.first_wicket_runs DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('2015-05-19', 'Wankhede Stadium', 'Chennai Super Kings', 90), ('2025-05-30', 'Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh', 'Gujarat Titans', 84), ('2011-05-25', 'Wankhede Stadium', 'Kolkata Knight Riders', 81)]
+
+--- Entry #33 ---
+Question: Show Rohit Sharma’s sixes tally compared to Chris Gayle in IPL.
+SQL: SELECT T2."player_name", COUNT(T1."runs_scored") FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" WHERE T1."runs_scored" = 6 AND T2."player_name" IN ('RG Sharma', 'CH Gayle') GROUP BY T2."player_name" ORDER BY COUNT(T1."runs_scored") DESC;
+Result: [SUCCESS]
+[('CH Gayle', 359), ('RG Sharma', 303)]
+
+--- Entry #34 ---
+Question: List instances since 2022 when MI won the toss and chose to bat first.
+SQL: SELECT "season", "match_date", "venue", CASE WHEN "team1" = 'Mumbai Indians' THEN "team2" ELSE "team1" END AS "opponent" FROM "Matches" WHERE "toss_winner" = 'Mumbai Indians' AND "toss_decision" = 'bat' AND "season" >= '2022' ORDER BY "match_date" DESC LIMIT 5
+Result: [SUCCESS]
+[('2025', '2025-05-30', 'Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh', 'Gujarat Titans'), ('2024', '2024-04-22', 'Sawai Mansingh Stadium, Jaipur', 'Rajasthan Royals'), ('2023', '2023-05-24', 'MA Chidambaram Stadium, Chepauk, Chennai', 'Lucknow Super Giants')]
+
+--- Entry #35 ---
+Question: Show MI’s win–loss record in matches where they chose to bat first after winning the toss since 2022.
+SQL: SELECT
+  SUM(CASE WHEN "match_winner" = 'Mumbai Indians' THEN 1 ELSE 0 END) AS "Wins",
+  SUM(CASE WHEN "match_winner" != 'Mumbai Indians' THEN 1 ELSE 0 END) AS "Losses"
+FROM "Matches"
+WHERE
+  "toss_winner" = 'Mumbai Indians' AND "toss_decision" = 'bat' AND SUBSTR("season", 1, 4) >= '2022';
+Result: [SUCCESS]
+[(2, 1)]
+
+--- Entry #36 ---
+Question: Show the highest individual run tally by an MI batter in any IPL season.
+SQL: SELECT T2."player_name", SUM(T1."runs_scored") AS "total_runs" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN PlayerInMatch AS T3 ON T1."match_id" = T3."match_id" AND T1."striker_id" = T3."player_id" WHERE T3."team_name" = 'Mumbai Indians' GROUP BY T1."match_id", T2."player_name" ORDER BY "total_runs" DESC LIMIT 1
+Result: [SUCCESS]
+[('ST Jayasuriya', 114)]
+
+--- Entry #37 ---
+Question: Show teams that used the same top three batters in all league matches of an IPL season.
+SQL: WITH BattingOrder AS (
+  SELECT
+    T1."match_id",
+    T1."batting_team",
+    T1."striker_id",
+    ROW_NUMBER() OVER (PARTITION BY T1."match_id", T1."batting_team" ORDER BY T1.first_ball_faced) AS batting_position
+  FROM (
+    SELECT
+      "match_id",
+      "batting_team",
+      "striker_id",
+      MIN("delivery_id") AS first_ball_faced
+    FROM "Deliveries"
+    GROUP BY
+      "match_id",
+      "batting_team",
+      "striker_id"
+  ) AS T1
+), MatchTop3Lineup AS (
+  SELECT
+    M."season",
+    B."batting_team",
+    GROUP_CONCAT(B."striker_id" ORDER BY B.batting_position) AS top_3_batters
+  FROM BattingOrder AS B
+  JOIN "Matches" AS M
+    ON B.match_id = M.match_id
+  WHERE
+    B.batting_position <= 3 AND M."stage" = 'Group'
+  GROUP BY
+    M."season",
+    B.match_id,
+    B."batting_team"
+  HAVING
+    COUNT(B."striker_id") = 3
+)
+SELECT
+  "season",
+  "batting_team"
+FROM MatchTop3Lineup
+GROUP BY
+  "season",
+  "batting_team"
+HAVING
+  COUNT(DISTINCT top_3_batters) = 1 AND COUNT(*) > 1
+ORDER BY
+  "season" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('2025', 'Gujarat Titans')]
+
+--- Entry #38 ---
+Question: Compare GT’s batting average and strike rate in IPL 2025 with MI’s bowling average, strike rate, and economy rate.
+SQL: WITH GT_Batting AS (SELECT CAST(SUM("runs_scored") AS REAL) AS gt_total_runs, COUNT("player_out_id") AS gt_dismissals, COUNT("delivery_id") AS gt_balls_faced FROM "Deliveries" INNER JOIN "Matches" ON "Deliveries"."match_id" = "Matches"."match_id" WHERE "Matches"."season" = '2025' AND "Deliveries"."batting_team" = 'Gujarat Titans'), MI_Bowling AS (SELECT CAST(SUM("runs_scored" + "extra_runs") AS REAL) AS mi_runs_conceded, COUNT(CASE WHEN "wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field') AND "player_out_id" IS NOT NULL THEN 1 END) AS mi_wickets_taken, COUNT("delivery_id") AS mi_balls_bowled FROM "Deliveries" INNER JOIN "Matches" ON "Deliveries"."match_id" = "Matches"."match_id" WHERE "Matches"."season" = '2025' AND "Deliveries"."bowling_team" = 'Mumbai Indians') SELECT gt_total_runs / gt_dismissals AS "GT Batting Average", gt_total_runs * 100 / gt_balls_faced AS "GT Batting Strike Rate", mi_runs_conceded / mi_wickets_taken AS "MI Bowling Average", CAST(mi_balls_bowled AS REAL) / mi_wickets_taken AS "MI Bowling Strike Rate", mi_runs_conceded * 6 / mi_balls_bowled AS "MI Bowling Economy" FROM GT_Batting, MI_Bowling
+Result: [SUCCESS]
+[(35.46153846153846, 150.57158410451822, 24.91743119266055, 17.63302752293578, 8.478668054110301)]
+
+--- Entry #39 ---
+Question: Show all the bowlers who have bowled maiden overs bowled in powerplay overs in IPL 2025.
+SQL: SELECT DISTINCT T3."player_name" FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."bowler_id" = T3."player_id" WHERE T2."season" = '2025' AND T1."over_number" <= 5 GROUP BY T1."match_id", T1."inning", T1."over_number", T1."bowler_id" HAVING SUM(T1."runs_scored" + T1."extra_runs") = 0;
+Result: [SUCCESS]
+[('JC Archer',), ('VG Arora',), ('Mukesh Kumar',), ('MM Ali',), ('DL Chahar',), ('KA Jamieson',)]
+
+--- Entry #40 ---
+Question: Show the lowest target successfully defended in IPL playoffs.
+SQL: SELECT MIN(T1.total_runs) + 1 FROM (SELECT SUM("runs_scored" + "extra_runs") AS total_runs FROM Deliveries WHERE "inning" = 1 AND "match_id" IN (SELECT "match_id" FROM Matches WHERE "stage" != 'Group') GROUP BY "match_id", "batting_team" HAVING "batting_team" = (SELECT "match_winner" FROM Matches WHERE "match_id" = Deliveries.match_id)) AS T1
+Result: [SUCCESS]
+[(130,)]
+
+--- Entry #41 ---
+Question: list the 5 lowest team totals in ipl playoffs.List the scores, the team and the year.
+SQL: SELECT SUM(T2."runs_scored" + T2."extra_runs") AS total, CASE T2."batting_team" WHEN 'Deccan Chargers' THEN 'Sunrisers Hyderabad' WHEN 'Delhi Daredevils' THEN 'Delhi Capitals' WHEN 'Kings XI Punjab' THEN 'Punjab Kings' WHEN 'Pune Warriors' THEN 'Rising Pune Supergiant' WHEN 'Rising Pune Supergiant' THEN 'Rising Pune Supergiant' WHEN 'Rising Pune Supergiants' THEN 'Rising Pune Supergiant' WHEN 'Royal Challengers Bangalore' THEN 'Royal Challengers Bengaluru' ELSE T2."batting_team" END, T1."season" FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1."match_id" = T2."match_id" WHERE T1."stage" <> 'Group' GROUP BY T1."match_id", T2."batting_team" ORDER BY total ASC LIMIT 5
+Result: [SUCCESS]
+[(48, 'Kolkata Knight Riders', '2017'), (82, 'Sunrisers Hyderabad', '2009/10'), (86, 'Royal Challengers Bengaluru', '2009/10'), (87, 'Delhi Capitals', '2007/08'), (101, 'Lucknow Super Giants', '2023')]
+
+--- Entry #42 ---
+Question: What is punjab's lowest score at the fall of 5th wicket in ipl 2025?
+SQL: WITH PunjabDeliveries AS (
+  SELECT
+    T1."match_id",
+    T1."inning",
+    T1."over_number",
+    T1."ball_number",
+    T1."runs_scored",
+    T1."extra_runs",
+    T1."player_out_id"
+  FROM Deliveries AS T1
+  INNER JOIN Matches AS T2
+    ON T1."match_id" = T2."match_id"
+  WHERE
+    T2."season" = '2025' AND T1."batting_team" IN ('Kings XI Punjab', 'Punjab Kings')
+), RunningTotals AS (
+  SELECT
+    SUM("runs_scored" + "extra_runs") OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS "running_score",
+    COUNT("player_out_id") OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS "wickets_fallen"
+  FROM PunjabDeliveries
+)
+SELECT
+  MIN("running_score")
+FROM RunningTotals
+WHERE
+  "wickets_fallen" = 5;
+Result: [SUCCESS]
+[(50,)]
+
+--- Entry #43 ---
+Question: List the top 5 bowlers with the best economy rate in overs 1–6 in IPL 2025 among those who bowled 15 or more overs.
+SQL: SELECT T2."player_name", CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) * 6.0 / COUNT(T1."delivery_id") AS economy FROM Deliveries AS T1 INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" WHERE T3."season" = '2025' AND T1."over_number" <= 5 GROUP BY T1."bowler_id" HAVING COUNT(T1."delivery_id") >= 90 ORDER BY economy ASC LIMIT 5
+Result: [SUCCESS]
+[('JR Hazlewood', 7.164179104477612), ('JJ Bumrah', 7.935483870967742), ('JC Archer', 7.936708860759493), ('Mukesh Kumar', 8.014925373134329), ('A Kamboj', 8.031496062992126)]
+
+--- Entry #44 ---
+Question: Show the team with the lowest economy rate and highest dot-ball percentage in IPL 2025 with the corresponding numbers.
+SQL: WITH TeamStats AS (SELECT T1."bowling_team", CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) * 6 / COUNT(T1."delivery_id") AS economy, CAST(SUM(CASE WHEN T1."runs_scored" = 0 AND T1."extra_runs" = 0 THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T1."delivery_id") AS dot_percentage FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" WHERE T2."season" = '2025' GROUP BY T1."bowling_team"), RankedStats AS (SELECT "bowling_team", "economy", "dot_percentage", RANK() OVER (ORDER BY "economy" ASC) AS economy_rank, RANK() OVER (ORDER BY "dot_percentage" DESC) AS dot_rank FROM TeamStats) SELECT "bowling_team", "economy", "dot_percentage" FROM RankedStats ORDER BY (economy_rank + dot_rank) ASC LIMIT 1
+Result: [SUCCESS]
+[('Mumbai Indians', 8.478668054110301, 34.23517169614984)]
+
+--- Entry #45 ---
+Question: List the punjab batters who have scored 500+ runs in a single ipl season alongwith the runs
+SQL: SELECT T3."player_name", T2."season", SUM(T1."runs_scored") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."striker_id" = T3."player_id" WHERE T1."batting_team" IN ('Kings XI Punjab', 'Punjab Kings') GROUP BY T2."season", T3."player_name" HAVING SUM(T1."runs_scored") >= 500 ORDER BY SUM(T1."runs_scored") DESC;
+Result: [SUCCESS]
+[('KL Rahul', '2020/21', 676), ('KL Rahul', '2018', 659), ('KL Rahul', '2021', 626), ('SE Marsh', '2007/08', 616), ('SS Iyer', '2025', 604), ('KL Rahul', '2019', 593), ('GJ Maxwell', '2014', 552), ('P Simran Singh', '2025', 549), ('SE Marsh', '2011', 504)]
+
+--- Entry #46 ---
+Question: Show Virat Kohli’s overall batting record against PBKS in IPL — matches, runs, average, strike rate, centuries, and fifties.
+SQL: WITH KohliMatchRuns AS (
+  SELECT
+    T1."match_id",
+    SUM(T1."runs_scored") AS runs,
+    COUNT(T1."delivery_id") AS balls
+  FROM "Deliveries" AS T1
+  WHERE
+    T1."striker_id" = (
+      SELECT
+        "player_id"
+      FROM "Players"
+      WHERE
+        "player_name" = 'V Kohli'
+    ) AND T1."bowling_team" IN ('Kings XI Punjab', 'Punjab Kings')
+  GROUP BY
+    T1."match_id"
+), KohliDismissals AS (
+  SELECT
+    COUNT(T1."delivery_id") AS dismissals
+  FROM "Deliveries" AS T1
+  WHERE
+    T1."player_out_id" = (
+      SELECT
+        "player_id"
+      FROM "Players"
+      WHERE
+        "player_name" = 'V Kohli'
+    ) AND T1."bowling_team" IN ('Kings XI Punjab', 'Punjab Kings')
+)
+SELECT
+  COUNT(T1."match_id") AS "Matches",
+  SUM(T1.runs) AS "Runs",
+  CAST(SUM(T1.runs) AS REAL) / T2.dismissals AS "Average",
+  CAST(SUM(T1.runs) AS REAL) * 100 / SUM(T1.balls) AS "Strike Rate",
+  SUM(CASE WHEN T1.runs >= 100 THEN 1 ELSE 0 END) AS "Centuries",
+  SUM(CASE WHEN T1.runs >= 50 AND T1.runs < 100 THEN 1 ELSE 0 END) AS "Fifties"
+FROM KohliMatchRuns AS T1, KohliDismissals AS T2;
+Result: [SUCCESS]
+[(36, 1159, 36.21875, 128.06629834254144, 1, 6)]
+
+--- Entry #47 ---
+Question: Show Kohli’s batting stats while chasing in IPL 2025 — runs, innings, average, and strike rate.
+SQL: SELECT
+  SUM(T1."runs_scored") AS "Runs",
+  COUNT(DISTINCT T1."match_id") AS "Innings",
+  CAST(SUM(T1."runs_scored") AS REAL) / SUM(CASE WHEN T1."player_out_id" = T1."striker_id" THEN 1 ELSE 0 END) AS "Average",
+  CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(T1."delivery_id") AS "Strike_Rate"
+FROM "Deliveries" AS T1
+INNER JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id"
+INNER JOIN "Players" AS T3
+  ON T1."striker_id" = T3."player_id"
+WHERE
+  T3."player_name" LIKE 'V Kohli%' AND T2."season" = '2025' AND T1."inning" = 2 AND NOT (
+    T1."extra_runs" > 0 AND T1."runs_scored" = 0 AND T1."wicket_type" IS NULL
+  );
+Result: [SUCCESS]
+[(354, 7, 88.5, 143.90243902439025)]
+
+--- Entry #48 ---
+Question: Show Iyer’s strike rate in IPL 2025 during powerplay, middle overs, and death overs
+SQL: SELECT T2."player_name", CASE WHEN T1."over_number" <= 5 THEN 'Powerplay' WHEN T1."over_number" > 5 AND T1."over_number" <= 14 THEN 'Middle Overs' ELSE 'Death Overs' END AS match_phase, CAST(SUM(T1."runs_scored") AS REAL) * 100.0 / COUNT(T1."delivery_id") AS strike_rate FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T2."player_name" LIKE '%Iyer%' AND T3."season" = '2025' AND NOT (T1."extra_runs" > 0 AND T1."runs_scored" = 0 AND T1."wicket_type" IS NULL) GROUP BY T2."player_name", match_phase ORDER BY T2."player_name", CASE WHEN match_phase = 'Powerplay' THEN 1 WHEN match_phase = 'Middle Overs' THEN 2 ELSE 3 END
+Result: [SUCCESS]
+[('SS Iyer', 'Powerplay', 147.76119402985074), ('SS Iyer', 'Middle Overs', 164.9746192893401), ('SS Iyer', 'Death Overs', 230.76923076923077), ('VR Iyer', 'Powerplay', 36.36363636363637), ('VR Iyer', 'Middle Overs', 125.0), ('VR Iyer', 'Death Overs', 265.0)]
+
+--- Entry #49 ---
+Question: List the top 5 highest scores from No.6 or lower in successful IPL run-chases
+SQL: WITH BattingOrder AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id",
+    DENSE_RANK() OVER (PARTITION BY "match_id", "inning" ORDER BY MIN("delivery_id")) AS batting_position
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "inning",
+    "striker_id"
+), PlayerScores AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id",
+    "batting_team",
+    SUM("runs_scored") AS total_runs
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "inning",
+    "striker_id",
+    "batting_team"
+)
+SELECT
+  T3."player_name",
+  T2.total_runs,
+  T4."venue",
+  T4."match_date"
+FROM BattingOrder AS T1
+INNER JOIN PlayerScores AS T2
+  ON T1."match_id" = T2."match_id"
+  AND T1."striker_id" = T2."striker_id"
+INNER JOIN "Players" AS T3
+  ON T1."striker_id" = T3."player_id"
+INNER JOIN "Matches" AS T4
+  ON T1."match_id" = T4."match_id"
+WHERE
+  T1.inning = 2 AND T1.batting_position >= 6 AND T2.batting_team = T4.match_winner
+ORDER BY
+  T2.total_runs DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('JM Sharma', 85, 'Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', '2025-05-27'), ('MS Dhoni', 70, 'M.Chinnaswamy Stadium', '2018-04-25'), ('AD Russell', 70, 'Wankhede Stadium, Mumbai', '2022-04-01'), ('DJ Bravo', 68, 'Wankhede Stadium', '2018-04-07'), ('KA Pollard', 66, 'Wankhede Stadium', '2013-05-13')]
+
+--- Entry #50 ---
+Question: what is the highest partnership for RCB for 5th wicket or lower in a run-chase.Give the batsman involved with the partnership.
+SQL: WITH WicketEvents AS (
+  SELECT
+    "match_id",
+    "over_number",
+    "ball_number",
+    "striker_id",
+    "non_striker_id",
+    "runs_scored" + "extra_runs" AS "total_runs",
+    CASE WHEN "player_out_id" IS NOT NULL THEN 1 ELSE 0 END AS "is_wicket"
+  FROM "Deliveries"
+  WHERE
+    "inning" = 2 AND "batting_team" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru')
+), PartnershipGroups AS (
+  SELECT
+    T1."match_id",
+    T1."striker_id",
+    T1."non_striker_id",
+    T1."total_runs",
+    COALESCE(SUM(T1."is_wicket") OVER (PARTITION BY T1."match_id" ORDER BY T1."over_number", T1."ball_number" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING), 0) AS "wickets_down"
+  FROM WicketEvents AS T1
+  JOIN "Matches" AS M
+    ON T1."match_id" = M."match_id"
+  WHERE
+    M."result_type" != 'no result'
+), PartnershipStats AS (
+  SELECT
+    SUM("total_runs") AS "partnership_runs",
+    MIN(CASE WHEN "striker_id" < "non_striker_id" THEN "striker_id" ELSE "non_striker_id" END) AS "batsman1_id",
+    MAX(CASE WHEN "striker_id" > "non_striker_id" THEN "striker_id" ELSE "non_striker_id" END) AS "batsman2_id"
+  FROM PartnershipGroups
+  WHERE
+    "wickets_down" >= 4
+  GROUP BY
+    "match_id",
+    "wickets_down"
+)
+SELECT
+  PS."partnership_runs",
+  P1."player_name",
+  P2."player_name"
+FROM PartnershipStats AS PS
+JOIN "Players" AS P1
+  ON PS."batsman1_id" = P1."player_id"
+JOIN "Players" AS P2
+  ON PS."batsman2_id" = P2."player_id"
+ORDER BY
+  PS."partnership_runs" DESC
+LIMIT 1;
+Result: [SUCCESS]
+[(107, 'MA Agarwal', 'JM Sharma')]
+
+--- Entry #51 ---
+Question: List the 5 most expensive bowling spells with figures, bowler and the teams and year.
+SQL: SELECT T2."player_name", T3."season", T1."bowling_team", T1."batting_team", SUM(T1."runs_scored" + T1."extra_runs") AS "runs_conceded", SUM(CASE WHEN T1."wicket_type" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') THEN 1 ELSE 0 END) AS "wickets_taken" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T3."result_type" != 'no result' GROUP BY T1."match_id", T1."bowler_id" ORDER BY "runs_conceded" DESC LIMIT 5
+Result: [SUCCESS]
+[('JC Archer', '2025', 'Rajasthan Royals', 'Sunrisers Hyderabad', 80, 0), ('Mohammed Shami', '2025', 'Sunrisers Hyderabad', 'Punjab Kings', 75, 0), ("W O'Rourke", '2025', 'Lucknow Super Giants', 'Royal Challengers Bengaluru', 74, 2), ('MM Sharma', '2024', 'Gujarat Titans', 'Delhi Capitals', 73, 0), ('Basil Thampi', '2018', 'Sunrisers Hyderabad', 'Royal Challengers Bangalore', 70, 0)]
+
+--- Entry #52 ---
+Question: Find the top 5 players with the highest strike rates who scored atleast 400 runs in an ipl season.
+SQL: SELECT
+  T3."player_name",
+  T2."season",
+  SUM(T1."runs_scored") AS "total_runs",
+  CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(
+    CASE
+      WHEN T1."extra_runs" = 0
+      OR T1."runs_scored" > 0
+      OR T1."wicket_type" IS NOT NULL THEN 1
+    END
+  ) AS "strike_rate"
+FROM "Deliveries" AS T1
+INNER JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id"
+INNER JOIN "Players" AS T3
+  ON T1."striker_id" = T3."player_id"
+GROUP BY
+  T3."player_name",
+  T2."season"
+HAVING
+  SUM(T1."runs_scored") >= 400
+ORDER BY
+  "strike_rate" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('Abhishek Sharma', '2024', 484, 208.6206896551724), ('AD Russell', '2019', 514, 207.25806451612902), ('N Pooran', '2025', 524, 198.4848484848485), ('GJ Maxwell', '2014', 552, 197.8494623655914), ('Abhishek Sharma', '2025', 439, 196.8609865470852)]
+
+--- Entry #53 ---
+Question: List the teams that failed to have a 50 run opening stand in a season.List the teams,year and their highest opening stand for that season
+SQL: WITH OpeningPartnershipRuns AS (
+  SELECT
+    T1."match_id",
+    T1."inning",
+    T1."batting_team",
+    SUM(T1."runs_scored" + T1."extra_runs") AS opening_runs
+  FROM "Deliveries" AS T1
+  LEFT JOIN (
+    SELECT
+      "match_id",
+      "inning",
+      MIN("delivery_id") AS first_wicket_delivery_id
+    FROM "Deliveries"
+    WHERE
+      "wicket_type" IS NOT NULL
+    GROUP BY
+      "match_id",
+      "inning"
+  ) AS T2
+    ON T1."match_id" = T2."match_id"
+    AND T1."inning" = T2."inning"
+  WHERE
+    T1."delivery_id" < T2.first_wicket_delivery_id OR T2.first_wicket_delivery_id IS NULL
+  GROUP BY
+    T1."match_id",
+    T1."inning",
+    T1."batting_team"
+)
+SELECT
+  CASE
+    WHEN T1."batting_team" = 'Delhi Daredevils'
+    THEN 'Delhi Capitals'
+    WHEN T1."batting_team" = 'Kings XI Punjab'
+    THEN 'Punjab Kings'
+    WHEN T1."batting_team" = 'Deccan Chargers'
+    THEN 'Sunrisers Hyderabad'
+    WHEN T1."batting_team" IN ('Pune Warriors', 'Rising Pune Supergiants')
+    THEN 'Rising Pune Supergiant'
+    WHEN T1."batting_team" = 'Royal Challengers Bangalore'
+    THEN 'Royal Challengers Bengaluru'
+    ELSE T1."batting_team"
+  END AS "team",
+  T2."season" AS "year",
+  MAX(T1."opening_runs") AS "highest_opening_stand"
+FROM OpeningPartnershipRuns AS T1
+JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id"
+GROUP BY
+  "team",
+  "year"
+HAVING
+  MAX(T1."opening_runs") < 50
+ORDER BY
+  "team",
+  "year";
+Result: [SUCCESS]
+[('Delhi Capitals', '2009/10', 44), ('Kolkata Knight Riders', '2025', 48), ('Royal Challengers Bengaluru', '2007/08', 37)]
+
+--- Entry #54 ---
+Question: What was the lowest powerplay score in ahmedabad in ipl 2025?
+SQL: SELECT SUM(T1."runs_scored" + T1."extra_runs") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" WHERE T2."city" = 'Ahmedabad' AND T2."season" = '2025' AND T1."over_number" < 6 GROUP BY T1."match_id", T1."inning" ORDER BY SUM(T1."runs_scored" + T1."extra_runs") ASC LIMIT 1
+Result: [SUCCESS]
+[(35,)]
+
+--- Entry #55 ---
+Question: Which bowler conceded the most sixes in an ipl season. List the top 5 bowlers with the number of sixes conceded by them.
+SQL: SELECT T3."player_name", T2."season", COUNT(T1."delivery_id") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."bowler_id" = T3."player_id" WHERE T1."runs_scored" = 6 GROUP BY T3."player_name", T2."season" ORDER BY COUNT(T1."delivery_id") DESC LIMIT 5
+Result: [SUCCESS]
+[('Rashid Khan', '2025', 33), ('Mohammed Siraj', '2022', 31), ('PWH de Silva', '2022', 30), ('YS Chahal', '2024', 30), ('DJ Bravo', '2018', 29)]
+
+--- Entry #56 ---
+Question: List the top 2 most runs scored by csk in an over in ipl 2025.
+SQL: SELECT SUM(T1.runs_scored + T1.extra_runs) AS total_runs FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T2.season = '2025' AND T1.batting_team = 'Chennai Super Kings' GROUP BY T1.match_id, T1.over_number ORDER BY total_runs DESC LIMIT 2
+Result: [SUCCESS]
+[(30,), (28,)]
+
+--- Entry #57 ---
+Question: List all instances of 200+ targets getting chased down in jaipur.
+SQL: SELECT
+  T1."season",
+  T1."venue",
+  T2.inning1_score + 1 AS target,
+  T1."match_winner" AS chasing_team
+FROM Matches AS T1
+INNER JOIN (
+  SELECT
+    "match_id",
+    SUM("runs_scored" + "extra_runs") AS inning1_score
+  FROM Deliveries
+  WHERE
+    "inning" = 1
+  GROUP BY
+    "match_id"
+) AS T2
+  ON T1."match_id" = T2."match_id"
+INNER JOIN (
+  SELECT
+    "match_id",
+    SUM("runs_scored" + "extra_runs") AS inning2_score
+  FROM Deliveries
+  WHERE
+    "inning" = 2
+  GROUP BY
+    "match_id"
+) AS T3
+  ON T1."match_id" = T3."match_id"
+WHERE
+  T1."city" = 'Jaipur' AND T2.inning1_score >= 199 AND T3.inning2_score > T2.inning1_score;
+Result: [SUCCESS]
+[('2023', 'Sawai Mansingh Stadium, Jaipur', 215, 'Sunrisers Hyderabad'), ('2025', 'Sawai Mansingh Stadium, Jaipur', 210, 'Rajasthan Royals'), ('2025', 'Sawai Mansingh Stadium, Jaipur', 207, 'Delhi Capitals')]
+
+--- Entry #58 ---
+Question: List the top 5 run scorers in last 5 overs since the start of 2024.
+SQL: SELECT T2.player_name, SUM(T1.runs_scored) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.striker_id = T2.player_id INNER JOIN Matches AS T3 ON T1.match_id = T3.match_id WHERE T3.match_date >= '2024-01-01' AND T1.over_number >= 15 GROUP BY T2.player_name ORDER BY SUM(T1.runs_scored) DESC LIMIT 5
+Result: [SUCCESS]
+[('T Stubbs', 421), ('Shashank Singh', 377), ('H Klaasen', 345), ('N Pooran', 344), ('TH David', 341)]
+
+--- Entry #59 ---
+Question: Highest SR in lst 5 overs Overs in IPL 2025 (min 25 balls). list the top 5 with their runs, balls played and strike rate.
+SQL: SELECT T2.player_name, SUM(T1.runs_scored) AS total_runs, COUNT(CASE WHEN NOT (T1.extra_runs > 0 AND T1.runs_scored = 0 AND T1.wicket_type IS NULL) THEN 1 END) AS balls_faced, (SUM(T1.runs_scored) * 100.0) / COUNT(CASE WHEN NOT (T1.extra_runs > 0 AND T1.runs_scored = 0 AND T1.wicket_type IS NULL) THEN 1 END) AS strike_rate FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.striker_id = T2.player_id INNER JOIN Matches AS T3 ON T1.match_id = T3.match_id WHERE T3.season = '2025' AND T1.over_number >= 15 GROUP BY T2.player_name HAVING COUNT(CASE WHEN NOT (T1.extra_runs > 0 AND T1.runs_scored = 0 AND T1.wicket_type IS NULL) THEN 1 END) >= 25 ORDER BY strike_rate DESC LIMIT 5
+Result: [SUCCESS]
+[('MP Stoinis', 107, 37, 289.18918918918916), ('RK Singh', 109, 47, 231.91489361702128), ('PJ Cummins', 81, 35, 231.42857142857142), ('SS Iyer', 180, 78, 230.76923076923077), ('AD Russell', 108, 48, 225.0)]
+
+--- Entry #60 ---
+Question: PBKS runrate in last 5 overs in ipl 2025.
+SQL: SELECT CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) * 6 / COUNT(T1."delivery_id") FROM "Deliveries" AS T1 INNER JOIN "Matches" AS T2 ON T1."match_id" = T2."match_id" WHERE T2."season" = '2025' AND T1."batting_team" IN ('Kings XI Punjab', 'Punjab Kings') AND T1."over_number" >= 15
+Result: [SUCCESS]
+[(11.266503667481663,)]
+
+--- Entry #61 ---
+Question: List the top 5 players who have missed the most matches between 2 appearances for a franchise.
+SQL: WITH PlayerMatchDates AS (
+  SELECT
+    T1."player_id",
+    T1."team_name",
+    T2."match_date"
+  FROM "PlayerInMatch" AS T1
+  INNER JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+), PlayerConsecutiveAppearances AS (
+  SELECT
+    "player_id",
+    "team_name",
+    "match_date",
+    LEAD("match_date", 1) OVER (PARTITION BY "player_id", "team_name" ORDER BY "match_date") AS "next_match_date"
+  FROM PlayerMatchDates
+)
+SELECT
+  T3."player_name",
+  T1."team_name",
+  (
+    SELECT
+      COUNT(T2."match_id")
+    FROM "Matches" AS T2
+    WHERE
+      (
+        T2."team1" = T1."team_name" OR T2."team2" = T1."team_name"
+      )
+      AND T2."match_date" > T1."match_date"
+      AND T2."match_date" < T1."next_match_date"
+  ) AS "missed_matches"
+FROM PlayerConsecutiveAppearances AS T1
+INNER JOIN "Players" AS T3
+  ON T1."player_id" = T3."player_id"
+WHERE
+  T1."next_match_date" IS NOT NULL
+ORDER BY
+  "missed_matches" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('KV Sharma', 'Royal Challengers Bangalore', 209), ('Mandeep Singh', 'Kolkata Knight Riders', 190), ('V Shankar', 'Chennai Super Kings', 132), ('DW Steyn', 'Royal Challengers Bangalore', 128), ('S Gopal', 'Mumbai Indians', 124)]
+
+--- Entry #62 ---
+Question: List the top 5 players, between 2 appearances of whom a franchise played the most number of matches.
+SQL: WITH FranchiseMatches AS (
+  SELECT
+    "match_id",
+    CASE
+      WHEN "team_name" IN ('Delhi Daredevils', 'Delhi Capitals') THEN 'Delhi Capitals'
+      WHEN "team_name" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+      WHEN "team_name" IN ('Deccan Chargers', 'Sunrisers Hyderabad') THEN 'Sunrisers Hyderabad'
+      WHEN "team_name" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants') THEN 'Rising Pune Supergiant'
+      WHEN "team_name" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru'
+      ELSE "team_name"
+    END AS "franchise_name"
+  FROM
+    (
+      SELECT
+        "match_id",
+        "team1" AS "team_name"
+      FROM "Matches"
+      UNION ALL
+      SELECT
+        "match_id",
+        "team2" AS "team_name"
+      FROM "Matches"
+    )
+), FranchiseMatchNumbers AS (
+  SELECT
+    "match_id",
+    "franchise_name",
+    ROW_NUMBER() OVER (PARTITION BY "franchise_name" ORDER BY "match_id") AS "franchise_match_seq"
+  FROM FranchiseMatches
+), PlayerAppearanceSequence AS (
+  SELECT
+    T1."player_id",
+    T2."franchise_name",
+    T2."franchise_match_seq"
+  FROM "PlayerInMatch" AS T1
+  JOIN FranchiseMatchNumbers AS T2
+    ON T1."match_id" = T2."match_id"
+  WHERE
+    T2."franchise_name" = CASE
+      WHEN T1."team_name" IN ('Delhi Daredevils', 'Delhi Capitals') THEN 'Delhi Capitals'
+      WHEN T1."team_name" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+      WHEN T1."team_name" IN ('Deccan Chargers', 'Sunrisers Hyderabad') THEN 'Sunrisers Hyderabad'
+      WHEN T1."team_name" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants') THEN 'Rising Pune Supergiant'
+      WHEN T1."team_name" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru'
+      ELSE T1."team_name"
+    END
+), AppearanceGaps AS (
+  SELECT
+    "player_id",
+    "franchise_name",
+    "franchise_match_seq" - LAG("franchise_match_seq", 1) OVER (PARTITION BY "player_id", "franchise_name" ORDER BY "franchise_match_seq") AS "gap"
+  FROM PlayerAppearanceSequence
+)
+SELECT
+  T3."player_name",
+  T4."franchise_name",
+  T4."gap" - 1 AS "matches_missed"
+FROM AppearanceGaps AS T4
+JOIN "Players" AS T3
+  ON T4."player_id" = T3."player_id"
+WHERE
+  T4."gap" > 1
+ORDER BY
+  "matches_missed" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('KV Sharma', 'Royal Challengers Bengaluru', 209), ('Mandeep Singh', 'Kolkata Knight Riders', 190), ('MA Agarwal', 'Royal Challengers Bengaluru', 177), ('MR Marsh', 'Sunrisers Hyderabad', 149), ('S Dhawan', 'Delhi Capitals', 147)]
+
+--- Entry #63 ---
+Question: List the 4 highest powerplay scores in lucknow in ipl
+SQL: SELECT T1.venue, T2.batting_team, SUM(T2.runs_scored) + SUM(T2.extra_runs) AS "total_runs" FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id WHERE T1.city = 'Lucknow' AND T2.over_number <= 5 GROUP BY T1.match_id, T2.inning ORDER BY total_runs DESC LIMIT 4
+Result: [SUCCESS]
+[('Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', 'Sunrisers Hyderabad', 72), ('Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', 'Royal Challengers Bengaluru', 72), ('Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', 'Sunrisers Hyderabad', 71), ('Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', 'Kolkata Knight Riders', 70)]
+
+--- Entry #64 ---
+Question: List the 2 quickest team 50 in a match in lucknow.
+SQL: WITH TeamScores AS (SELECT T1.match_id, T1.inning, T1.batting_team, SUM(T1.runs_scored + T1.extra_runs) OVER (PARTITION BY T1.match_id, T1.inning ORDER BY T1.over_number, T1.ball_number) AS cumulative_runs, (T1.over_number * 6 + T1.ball_number) AS balls FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T2.city = 'Lucknow') SELECT batting_team, MIN(balls) AS balls_to_50 FROM TeamScores WHERE cumulative_runs >= 50 GROUP BY match_id, inning ORDER BY balls_to_50 ASC LIMIT 2
+Result: [SUCCESS]
+[('Sunrisers Hyderabad', 21), ('Sunrisers Hyderabad', 21)]
+
+--- Entry #65 ---
+Question: Most 200+ totals conceded by a team since 2022.
+SQL: SELECT T1.bowling_team, COUNT(*) AS times_conceded_200_plus FROM (SELECT T2.bowling_team FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id WHERE T1.season >= '2022' GROUP BY T1.match_id, T2.inning, T2.bowling_team HAVING SUM(T2.runs_scored + T2.extra_runs) >= 200) AS T1 GROUP BY T1.bowling_team ORDER BY times_conceded_200_plus DESC;
+Result: [SUCCESS]
+[('Sunrisers Hyderabad', 19), ('Lucknow Super Giants', 17), ('Punjab Kings', 16), ('Mumbai Indians', 15), ('Delhi Capitals', 15), ('Rajasthan Royals', 14), ('Kolkata Knight Riders', 14), ('Gujarat Titans', 12), ('Chennai Super Kings', 11), ('Royal Challengers Bangalore', 8), ('Royal Challengers Bengaluru', 7)]
+
+--- Entry #66 ---
+Question: top 4 Highest partnership average in ipl with minimum 1000 runs.
+SQL: WITH PartnershipDeliveries AS (
+  SELECT
+    MIN("striker_id", "non_striker_id") AS p1_id,
+    MAX("striker_id", "non_striker_id") AS p2_id,
+    "runs_scored",
+    "extra_runs",
+    "player_out_id",
+    "wicket_type"
+  FROM "Deliveries"
+), PartnershipStats AS (
+  SELECT
+    p1_id,
+    p2_id,
+    SUM("runs_scored" + "extra_runs") AS total_runs,
+    COUNT(CASE WHEN "player_out_id" IN (p1_id, p2_id) AND "wicket_type" NOT IN ('retired hurt', 'obstructing the field', 'retired out') THEN 1 END) AS dismissals
+  FROM PartnershipDeliveries
+  GROUP BY
+    p1_id,
+    p2_id
+)
+SELECT
+  p1."player_name",
+  p2."player_name",
+  CAST(ps.total_runs AS REAL) / ps.dismissals AS "Partnership Average"
+FROM PartnershipStats AS ps
+JOIN "Players" AS p1
+  ON ps.p1_id = p1."player_id"
+JOIN "Players" AS p2
+  ON ps.p2_id = p2."player_id"
+WHERE
+  ps.total_runs >= 1000 AND ps.dismissals > 0
+ORDER BY
+  "Partnership Average" DESC
+LIMIT 4;
+Result: [SUCCESS]
+[('Shubman Gill', 'B Sai Sudharsan', 64.3125), ('JM Bairstow', 'DA Warner', 53.88461538461539), ('V Kohli', 'CH Gayle', 52.867924528301884), ('MA Agarwal', 'KL Rahul', 52.45454545454545)]
+
+--- Entry #67 ---
+Question: highest average for a batsman in powerplay with minimum 20 innnings.
+SQL: SELECT T2."player_name", CAST(SUM(T1."runs_scored") AS REAL) / NULLIF(COUNT(CASE WHEN T1."player_out_id" = T1."striker_id" AND T1."wicket_type" NOT IN ('retired hurt', 'obstructing the field') THEN 1 END), 0) AS "average" FROM "Deliveries" AS T1 INNER JOIN "Players" AS T2 ON T1."striker_id" = T2."player_id" WHERE T1."over_number" <= 5 GROUP BY T2."player_name" HAVING COUNT(DISTINCT T1."match_id") >= 20 ORDER BY "average" DESC LIMIT 1
+Result: [SUCCESS]
+[('B Sai Sudharsan', 112.33333333333333)]
+
+--- Entry #68 ---
+Question: most sixes by lsg in an ipl innings.
+SQL: SELECT "match_id", "inning", COUNT(*) FROM "Deliveries" WHERE "batting_team" = 'Lucknow Super Giants' AND "runs_scored" = 6 GROUP BY "match_id", "inning" ORDER BY COUNT(*) DESC LIMIT 1
+Result: [SUCCESS]
+[(1473502, 1, 17)]
+
+--- Entry #69 ---
+Question: highest partnership for lsg for 2nd wicket or lower.
+SQL: WITH PartnershipData AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id",
+    "non_striker_id",
+    "runs_scored" + "extra_runs" AS total_runs,
+    SUM(CASE WHEN "player_out_id" IS NOT NULL THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number" ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING) AS wicket_group
+  FROM "Deliveries"
+  WHERE
+    "batting_team" = 'Lucknow Super Giants'
+), PartnershipPairs AS (
+  SELECT
+    "match_id",
+    "inning",
+    wicket_group,
+    MIN("striker_id") AS p1_id,
+    MAX("striker_id") AS p2_id,
+    SUM(total_runs) AS partnership_runs
+  FROM PartnershipData
+  GROUP BY
+    "match_id",
+    "inning",
+    wicket_group
+)
+SELECT
+  T2."player_name",
+  T3."player_name",
+  T1.partnership_runs
+FROM PartnershipPairs AS T1
+JOIN "Players" AS T2
+  ON T1.p1_id = T2."player_id"
+JOIN "Players" AS T3
+  ON T1.p2_id = T3."player_id"
+WHERE
+  T1.wicket_group >= 1
+ORDER BY
+  T1.partnership_runs DESC
+LIMIT 1;
+Result: [SUCCESS]
+[('MR Marsh', 'RR Pant', 152)]
+
+--- Entry #70 ---
+Question: the 3 batsmen to Reach 50 in 25 or fewer balls most times in a season
+SQL: WITH BatsmanInnings AS (
+  SELECT
+    T1."match_id",
+    T1."striker_id",
+    T2."season",
+    SUM(T1."runs_scored") OVER (
+      PARTITION BY
+        T1."match_id",
+        T1."striker_id"
+      ORDER BY
+        T1."inning",
+        T1."over_number",
+        T1."ball_number"
+    ) AS "cumulative_runs",
+    SUM(
+      CASE WHEN NOT (
+        T1."extra_runs" > 0
+        AND T1."runs_scored" = 0
+        AND T1."wicket_type" IS NULL
+      ) THEN 1 ELSE 0 END
+    ) OVER (
+      PARTITION BY
+        T1."match_id",
+        T1."striker_id"
+      ORDER BY
+        T1."inning",
+        T1."over_number",
+        T1."ball_number"
+    ) AS "cumulative_balls_faced"
+  FROM "Deliveries" AS T1
+  INNER JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+), BallsToFifty AS (
+  SELECT
+    "match_id",
+    "striker_id",
+    "season",
+    MIN("cumulative_balls_faced") AS "balls_taken"
+  FROM BatsmanInnings
+  WHERE
+    "cumulative_runs" >= 50
+  GROUP BY
+    "match_id",
+    "striker_id",
+    "season"
+), FastFifties AS (
+  SELECT
+    "striker_id",
+    "season"
+  FROM BallsToFifty
+  WHERE
+    "balls_taken" <= 25
+), SeasonCounts AS (
+  SELECT
+    "striker_id",
+    "season",
+    COUNT(*) AS "num_fast_fifties"
+  FROM FastFifties
+  GROUP BY
+    "striker_id",
+    "season"
+)
+SELECT
+  T2."player_name",
+  T1."season",
+  T1."num_fast_fifties"
+FROM SeasonCounts AS T1
+INNER JOIN "Players" AS T2
+  ON T1."striker_id" = T2."player_id"
+ORDER BY
+  T1."num_fast_fifties" DESC
+LIMIT 3;
+Result: [SUCCESS]
+[('N Pooran', '2025', 5), ('TM Head', '2024', 4), ('RM Patidar', '2024', 4)]
+
+--- Entry #71 ---
+Question: most players to score 500+ runs in a single season
+SQL: WITH "PlayerRuns" AS (
+  SELECT
+    T2."season",
+    T1."striker_id"
+  FROM "Deliveries" AS T1
+  INNER JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+  GROUP BY
+    T2."season",
+    T1."striker_id"
+  HAVING
+    SUM(T1."runs_scored") >= 500
+)
+SELECT
+  "season",
+  COUNT("striker_id") AS "num_players"
+FROM "PlayerRuns"
+GROUP BY
+  "season"
+ORDER BY
+  "num_players" DESC
+LIMIT 1;
+Result: [SUCCESS]
+[('2025', 11)]
+
+--- Entry #72 ---
+Question: top 5 most wins against a team tally
+SQL: SELECT
+  CASE
+    WHEN "match_winner" IN ('Kings XI Punjab', 'Punjab Kings')
+    THEN 'Punjab Kings'
+    WHEN "match_winner" IN ('Delhi Daredevils', 'Delhi Capitals')
+    THEN 'Delhi Capitals'
+    WHEN "match_winner" IN ('Deccan Chargers', 'Sunrisers Hyderabad')
+    THEN 'Sunrisers Hyderabad'
+    WHEN "match_winner" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants')
+    THEN 'Rising Pune Supergiant'
+    WHEN "match_winner" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru')
+    THEN 'Royal Challengers Bengaluru'
+    ELSE "match_winner"
+  END AS "winning_team",
+  CASE
+    WHEN CASE
+      WHEN "team1" = "match_winner"
+      THEN "team2"
+      ELSE "team1"
+    END IN ('Kings XI Punjab', 'Punjab Kings')
+    THEN 'Punjab Kings'
+    WHEN CASE
+      WHEN "team1" = "match_winner"
+      THEN "team2"
+      ELSE "team1"
+    END IN ('Delhi Daredevils', 'Delhi Capitals')
+    THEN 'Delhi Capitals'
+    WHEN CASE
+      WHEN "team1" = "match_winner"
+      THEN "team2"
+      ELSE "team1"
+    END IN ('Deccan Chargers', 'Sunrisers Hyderabad')
+    THEN 'Sunrisers Hyderabad'
+    WHEN CASE
+      WHEN "team1" = "match_winner"
+      THEN "team2"
+      ELSE "team1"
+    END IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants')
+    THEN 'Rising Pune Supergiant'
+    WHEN CASE
+      WHEN "team1" = "match_winner"
+      THEN "team2"
+      ELSE "team1"
+    END IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru')
+    THEN 'Royal Challengers Bengaluru'
+    ELSE CASE
+      WHEN "team1" = "match_winner"
+      THEN "team2"
+      ELSE "team1"
+    END
+  END AS "losing_team",
+  COUNT(*) AS "wins"
+FROM "Matches"
+WHERE
+  "match_winner" IS NOT NULL
+GROUP BY
+  "winning_team",
+  "losing_team"
+ORDER BY
+  "wins" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('Kolkata Knight Riders', 'Sunrisers Hyderabad', 26), ('Mumbai Indians', 'Kolkata Knight Riders', 24), ('Chennai Super Kings', 'Royal Challengers Bengaluru', 21), ('Chennai Super Kings', 'Sunrisers Hyderabad', 21), ('Kolkata Knight Riders', 'Punjab Kings', 21)]
+
+--- Entry #73 ---
+Question: list the instances of a team that has failed to qualify for playoffs after winning each of their first four games.
+SQL: WITH TeamWins AS (SELECT T1.season, T1.team FROM (SELECT season, match_date, team, match_winner, ROW_NUMBER() OVER (PARTITION BY season, team ORDER BY match_date) AS match_num FROM (SELECT "season", "match_date", "team1" AS team, "match_winner" FROM Matches UNION ALL SELECT "season", "match_date", "team2" AS team, "match_winner" FROM Matches)) AS T1 WHERE T1.match_num <= 4 AND T1.team = T1.match_winner GROUP BY T1.season, T1.team HAVING COUNT(T1.team) = 4), PlayoffTeams AS (SELECT DISTINCT "season", "team1" AS team FROM Matches WHERE "stage" != 'Group' UNION SELECT DISTINCT "season", "team2" AS team FROM Matches WHERE "stage" != 'Group') SELECT T2.season, T2.team FROM TeamWins AS T2 LEFT JOIN PlayoffTeams AS T3 ON T2.season = T3.season AND T2.team = T3.team WHERE T3.team IS NULL
+Result: [SUCCESS]
+[('2025', 'Delhi Capitals')]
+
+--- Entry #74 ---
+Question: list the top 5 instances of most runs scored by mi in last 2 overs.list the opponent and the venue alongwith runs scored.
+SQL: SELECT
+  SUM(T1."runs_scored" + T1."extra_runs") AS total_runs,
+  T1."bowling_team",
+  T2."venue"
+FROM Deliveries AS T1
+INNER JOIN Matches AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T1."batting_team" = 'Mumbai Indians' AND T1."over_number" >= 18
+GROUP BY
+  T1."match_id",
+  T1."inning"
+ORDER BY
+  total_runs DESC
+LIMIT 5;
+Result: [SUCCESS]
+[(51, 'Delhi Capitals', 'Wankhede Stadium, Mumbai'), (48, 'Delhi Capitals', 'Wankhede Stadium, Mumbai'), (45, 'Chennai Super Kings', 'Wankhede Stadium'), (44, 'Kings XI Punjab', 'Sheikh Zayed Stadium'), (42, 'Delhi Daredevils', 'Wankhede Stadium')]
+
+--- Entry #75 ---
+Question: highest average by a player against any opponent with atleat 500 runs against them. list the runs strike rate and average.
+SQL: SELECT T2."player_name", CASE WHEN T1."bowling_team" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings' WHEN T1."bowling_team" IN ('Deccan Chargers', 'Sunrisers Hyderabad') THEN 'Sunrisers Hyderabad' WHEN T1."bowling_team" IN ('Delhi Daredevils', 'Delhi Capitals') THEN 'Delhi Capitals' WHEN T1."bowling_team" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants') THEN 'Rising Pune Supergiant' WHEN T1."bowling_team" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru' ELSE T1."bowling_team" END AS "opponent", SUM(T1."runs_scored") AS "total_runs", CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN NOT (T1."extra_runs" > 0 AND T1."runs_scored" = 0 AND T1."wicket_type" IS NULL) THEN 1 END) AS "strike_rate", CAST(SUM(T1."runs_scored") AS REAL) / COUNT(CASE WHEN T1."player_out_id" = T1."striker_id" AND T1."wicket_type" NOT IN ('retired hurt', 'obstructing the field') THEN 1 END) AS "average" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" GROUP BY T2."player_name", "opponent" HAVING SUM(T1."runs_scored") >= 500 AND COUNT(CASE WHEN T1."player_out_id" = T1."striker_id" AND T1."wicket_type" NOT IN ('retired hurt', 'obstructing the field') THEN 1 END) > 0 ORDER BY "average" DESC LIMIT 1
+Result: [SUCCESS]
+[('HH Pandya', 'Rajasthan Royals', 506, 173.8831615120275, 72.28571428571429)]
+
+--- Entry #76 ---
+Question: kl rahul record against mumbai.list his total runs strike rate and average.
+SQL: SELECT SUM(T2."runs_scored"), CAST(SUM(T2."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN NOT (T2."extra_runs" > 0 AND T2."runs_scored" = 0 AND T2."wicket_type" IS NULL) THEN 1 END), CAST(SUM(T2."runs_scored") AS REAL) / COUNT(CASE WHEN T2."player_out_id" = T1."player_id" AND T2."wicket_type" NOT IN ('retired hurt', 'obstructing the field') THEN 1 END) FROM Players AS T1 INNER JOIN Deliveries AS T2 ON T1."player_id" = T2."striker_id" WHERE T1."player_name" LIKE 'KL Rahul%' AND T2."bowling_team" = 'Mumbai Indians'
+Result: [SUCCESS]
+[(980, 137.83403656821378, 65.33333333333333)]
+
+--- Entry #77 ---
+Question: Most defeats for csk in an ipl season.
+SQL: SELECT "season", COUNT(*) FROM "Matches" WHERE ("team1" = 'Chennai Super Kings' OR "team2" = 'Chennai Super Kings') AND "match_winner" != 'Chennai Super Kings' GROUP BY "season" ORDER BY COUNT(*) DESC LIMIT 1
+Result: [SUCCESS]
+[('2025', 10)]
+
+--- Entry #78 ---
+Question: CSK record while defending in ipl 2025.
+SQL: SELECT SUM(CASE WHEN "match_winner" = 'Chennai Super Kings' THEN 1 ELSE 0 END) AS "Wins", SUM(CASE WHEN "match_winner" != 'Chennai Super Kings' AND "match_winner" IS NOT NULL THEN 1 ELSE 0 END) AS "Losses" FROM "Matches" WHERE "season" = '2025' AND ("team1" = 'Chennai Super Kings' OR "team2" = 'Chennai Super Kings') AND (("toss_winner" = 'Chennai Super Kings' AND "toss_decision" = 'bat') OR ("toss_winner" != 'Chennai Super Kings' AND "toss_decision" = 'field'))
+Result: [SUCCESS]
+[(1, 5)]
+
+--- Entry #79 ---
+Question: Top 4 Highest SR for a batter in an IPL season (min. 100 balls faced)
+SQL: SELECT
+  T2.player_name,
+  T3.season,
+  CAST(SUM(T1.runs_scored) AS REAL) * 100 / COUNT(CASE WHEN NOT (T1.extra_runs > 0 AND T1.runs_scored = 0 AND T1.wicket_type IS NULL) THEN 1 END) AS "StrikeRate"
+FROM Deliveries AS T1
+INNER JOIN Players AS T2
+  ON T1.striker_id = T2.player_id
+INNER JOIN Matches AS T3
+  ON T1.match_id = T3.match_id
+GROUP BY
+  T2.player_name,
+  T3.season
+HAVING
+  COUNT(CASE WHEN NOT (T1.extra_runs > 0 AND T1.runs_scored = 0 AND T1.wicket_type IS NULL) THEN 1 END) >= 100
+ORDER BY
+  "StrikeRate" DESC
+LIMIT 4;
+Result: [SUCCESS]
+[('J Fraser-McGurk', '2024', 240.87591240875912), ('V Suryavanshi', '2025', 210.0), ('Abhishek Sharma', '2024', 208.6206896551724), ('AD Russell', '2019', 207.25806451612902)]
+
+--- Entry #80 ---
+Question: top 5 teams with most sixes in powerplay in ipl 2025.
+SQL: SELECT T1."batting_team", COUNT(T1."runs_scored") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" WHERE T2."season" = '2025' AND T1."runs_scored" = 6 AND T1."over_number" <= 5 GROUP BY T1."batting_team" ORDER BY COUNT(T1."runs_scored") DESC LIMIT 5
+Result: [SUCCESS]
+[('Rajasthan Royals', 57), ('Punjab Kings', 47), ('Mumbai Indians', 46), ('Kolkata Knight Riders', 43), ('Lucknow Super Giants', 41)]
+
+--- Entry #81 ---
+Question: list every team's runrate and boundary percentage in powerplay in ipl 2025..
+SQL: SELECT
+  T1."batting_team",
+  CAST(SUM(T1."runs_scored" + T1."extra_runs") AS REAL) * 6 / COUNT(T1."delivery_id") AS "run_rate",
+  CAST(SUM(CASE WHEN T1."runs_scored" IN (4, 6) THEN 1 ELSE 0 END) AS REAL) * 100 / COUNT(T1."delivery_id") AS "boundary_percentage"
+FROM Deliveries AS T1
+INNER JOIN Matches AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T2."season" = '2025' AND T1."over_number" <= 5
+GROUP BY
+  T1."batting_team"
+ORDER BY
+  run_rate DESC;
+Result: [SUCCESS]
+[('Rajasthan Royals', 10.451977401129943, 29.566854990583803), ('Punjab Kings', 9.565768621236133, 25.039619651347067), ('Royal Challengers Bengaluru', 9.46690518783542, 24.86583184257603), ('Kolkata Knight Riders', 9.40997830802603, 25.162689804772235), ('Mumbai Indians', 9.318936877076412, 24.08637873754153), ('Sunrisers Hyderabad', 9.04158415841584, 23.96039603960396), ('Lucknow Super Giants', 8.982791586998088, 22.179732313575524), ('Gujarat Titans', 8.861209964412812, 21.530249110320284), ('Delhi Capitals', 8.511363636363637, 21.78030303030303), ('Chennai Super Kings', 8.354285714285714, 21.714285714285715)]
+
+--- Entry #82 ---
+Question: most sixes by a player in powerplay of ipl 2025 with the balls faced by them in powerplay this season.list the top 5
+SQL: SELECT T2.player_name, COUNT(T1.delivery_id), SUM(CASE WHEN T1.runs_scored = 6 THEN 1 ELSE 0 END) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.striker_id = T2.player_id INNER JOIN Matches AS T3 ON T1.match_id = T3.match_id WHERE T3.season = '2025' AND T1.over_number <= 5 GROUP BY T2.player_name ORDER BY SUM(CASE WHEN T1.runs_scored = 6 THEN 1 ELSE 0 END) DESC LIMIT 5
+Result: [SUCCESS]
+[('YBK Jaiswal', 215, 22), ('MR Marsh', 195, 19), ('P Simran Singh', 230, 17), ('SP Narine', 135, 15), ('RG Sharma', 174, 15)]
+
+--- Entry #83 ---
+Question: list the scores made by opponent team when rr was bowling first in ipl 2025
+SQL: SELECT T1."batting_team", SUM(T1."runs_scored" + T1."extra_runs") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" WHERE T2."season" = '2025' AND T1."inning" = 1 AND T1."bowling_team" = 'Rajasthan Royals' GROUP BY T1."match_id"
+Result: [SUCCESS]
+[('Sunrisers Hyderabad', 286), ('Gujarat Titans', 217), ('Delhi Capitals', 188), ('Lucknow Super Giants', 180), ('Royal Challengers Bengaluru', 205), ('Gujarat Titans', 209), ('Mumbai Indians', 217), ('Kolkata Knight Riders', 206), ('Punjab Kings', 219), ('Chennai Super Kings', 187)]
+
+--- Entry #84 ---
+Question: Best SR in middle Overs in IPL 2025 (min. 75 balls faced). list the top 5.
+SQL: SELECT T2."player_name", CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN NOT (T1."extra_runs" > 0 AND T1."runs_scored" = 0 AND T1."wicket_type" IS NULL) THEN 1 END) AS "strike_rate" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T3."season" = '2025' AND T1."over_number" BETWEEN 6 AND 14 GROUP BY T2."player_name" HAVING COUNT(CASE WHEN NOT (T1."extra_runs" > 0 AND T1."runs_scored" = 0 AND T1."wicket_type" IS NULL) THEN 1 END) >= 75 ORDER BY "strike_rate" DESC LIMIT 5
+Result: [SUCCESS]
+[('N Pooran', 207.04225352112675), ('MR Marsh', 172.7810650887574), ('SE Rutherford', 172.04301075268816), ('Aniket Verma', 171.60493827160494), ('D Brevis', 168.62745098039215)]
+
+--- Entry #85 ---
+Question: list the number of times each team has chased a total of 200 or more.
+SQL: WITH Inning1Scores AS (
+  SELECT
+    "match_id",
+    SUM("runs_scored" + "extra_runs") AS "inning1_total"
+  FROM "Deliveries"
+  WHERE
+    "inning" = 1
+  GROUP BY
+    "match_id"
+), ChasingTeams AS (
+  SELECT DISTINCT
+    "match_id",
+    "batting_team"
+  FROM "Deliveries"
+  WHERE
+    "inning" = 2
+)
+SELECT
+  CASE
+    WHEN T1.match_winner IN ('Kings XI Punjab', 'Punjab Kings')
+    THEN 'Punjab Kings'
+    WHEN T1.match_winner IN ('Deccan Chargers', 'Sunrisers Hyderabad')
+    THEN 'Sunrisers Hyderabad'
+    WHEN T1.match_winner IN ('Delhi Daredevils', 'Delhi Capitals')
+    THEN 'Delhi Capitals'
+    WHEN T1.match_winner IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants')
+    THEN 'Rising Pune Supergiant'
+    WHEN T1.match_winner IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru')
+    THEN 'Royal Challengers Bengaluru'
+    ELSE T1.match_winner
+  END AS "team_name",
+  COUNT(T1.match_id) AS "successful_chases"
+FROM Matches AS T1
+JOIN Inning1Scores AS T2
+  ON T1.match_id = T2.match_id
+JOIN ChasingTeams AS T3
+  ON T1.match_id = T3.match_id
+WHERE
+  T1.match_winner = T3.batting_team AND T2.inning1_total >= 199
+GROUP BY
+  "team_name"
+ORDER BY
+  "successful_chases" DESC;
+Result: [SUCCESS]
+[('Punjab Kings', 8), ('Mumbai Indians', 5), ('Sunrisers Hyderabad', 4), ('Rajasthan Royals', 4), ('Chennai Super Kings', 4), ('Royal Challengers Bengaluru', 3), ('Lucknow Super Giants', 3), ('Kolkata Knight Riders', 3), ('Delhi Capitals', 3), ('Gujarat Titans', 2)]
+
+--- Entry #86 ---
+Question: player Reaching 50 in fewer than 20 balls most times in IPL.list the top 4
+SQL: WITH CumulativeStats AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id",
+    SUM("runs_scored") OVER (PARTITION BY "match_id", "inning", "striker_id" ORDER BY "over_number", "ball_number") AS "cumulative_runs",
+    COUNT(CASE WHEN NOT ("extra_runs" > 0 AND "runs_scored" = 0 AND "wicket_type" IS NULL) THEN 1 END) OVER (PARTITION BY "match_id", "inning", "striker_id" ORDER BY "over_number", "ball_number") AS "balls_faced"
+  FROM "Deliveries"
+), InningsFifty AS (
+  SELECT
+    "striker_id",
+    "match_id",
+    "inning",
+    MIN("balls_faced") AS "balls_to_reach_50"
+  FROM CumulativeStats
+  WHERE
+    "cumulative_runs" >= 50
+  GROUP BY
+    "striker_id",
+    "match_id",
+    "inning"
+)
+SELECT
+  T2."player_name",
+  COUNT(T1."striker_id") AS "fast_fifties_count"
+FROM InningsFifty AS T1
+JOIN "Players" AS T2
+  ON T1."striker_id" = T2."player_id"
+WHERE
+  T1."balls_to_reach_50" < 20
+GROUP BY
+  T2."player_name"
+ORDER BY
+  "fast_fifties_count" DESC
+LIMIT 4;
+Result: [SUCCESS]
+[('TM Head', 4), ('N Pooran', 4), ('Abhishek Sharma', 4), ('KA Pollard', 3)]
+
+--- Entry #87 ---
+Question: top 4 highest powerplay scores in lucknow in ipl.give the teams involved and the year
+SQL: SELECT T1.season, T1.team1, T1.team2, T2.batting_team, SUM(T2.runs_scored + T2.extra_runs) AS total_runs FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id WHERE T1.city = 'Lucknow' AND T2.over_number <= 5 GROUP BY T1.match_id, T2.batting_team ORDER BY total_runs DESC LIMIT 4
+Result: [SUCCESS]
+[('2025', 'Lucknow Super Giants', 'Sunrisers Hyderabad', 'Sunrisers Hyderabad', 72), ('2025', 'Sunrisers Hyderabad', 'Royal Challengers Bengaluru', 'Royal Challengers Bengaluru', 72), ('2025', 'Sunrisers Hyderabad', 'Royal Challengers Bengaluru', 'Sunrisers Hyderabad', 71), ('2024', 'Kolkata Knight Riders', 'Lucknow Super Giants', 'Kolkata Knight Riders', 70)]
+
+--- Entry #88 ---
+Question: how many balls did tm head take to get to his fifty in the match of rr and srh in 2025
+SQL: WITH PlayerInnings AS (SELECT SUM(T1.runs_scored) OVER (ORDER BY T1.over_number, T1.ball_number) AS cumulative_runs, SUM(CASE WHEN T1.wides = 0 THEN 1 ELSE 0 END) OVER (ORDER BY T1.over_number, T1.ball_number) AS balls_faced FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id INNER JOIN Players AS T3 ON T1.striker_id = T3.player_id WHERE T3.player_name LIKE 'TM Head%' AND T2.season = '2025' AND ((CASE WHEN T2.team1 = 'Deccan Chargers' THEN 'Sunrisers Hyderabad' ELSE T2.team1 END = 'Sunrisers Hyderabad' AND T2.team2 = 'Rajasthan Royals') OR (T2.team1 = 'Rajasthan Royals' AND CASE WHEN T2.team2 = 'Deccan Chargers' THEN 'Sunrisers Hyderabad' ELSE T2.team2 END = 'Sunrisers Hyderabad'))) SELECT balls_faced FROM PlayerInnings WHERE cumulative_runs >= 50 LIMIT 1
+Result: [SUCCESS]
+[(21,)]
+
+--- Entry #89 ---
+Question: fewest balls to take 150 wickets in ipl.list the 5 fastest bowlers.
+SQL: SELECT T2."player_name", COUNT(CASE WHEN T1."wides" = 0 AND T1."noballs" = 0 THEN 1 END) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" WHERE T1."bowler_id" IN (SELECT "bowler_id" FROM Deliveries WHERE "wicket_type" IS NOT NULL AND "wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') GROUP BY "bowler_id" HAVING COUNT(*) >= 150) GROUP BY T2."player_name" ORDER BY COUNT(CASE WHEN T1."wides" = 0 AND T1."noballs" = 0 THEN 1 END) ASC LIMIT 5
+Result: [SUCCESS]
+[('HV Patel', 2424), ('SL Malinga', 2827), ('DJ Bravo', 3120), ('Rashid Khan', 3202), ('JJ Bumrah', 3359)]
+
+--- Entry #90 ---
+Question: list all instances of 100+ opening stands for lsg.the total runs and the batters involved
+SQL: WITH FirstWicket AS (
+  SELECT
+    "match_id",
+    "inning",
+    MIN("delivery_id") AS first_wicket_delivery_id
+  FROM "Deliveries"
+  WHERE
+    "wicket_type" IS NOT NULL
+  GROUP BY
+    "match_id",
+    "inning"
+), OpeningPartnershipRuns AS (
+  SELECT
+    T1."match_id",
+    T1."inning",
+    T1."batting_team",
+    SUM(T1."runs_scored" + T1."extra_runs") AS partnership_runs
+  FROM "Deliveries" AS T1
+  LEFT JOIN FirstWicket AS T2
+    ON T1."match_id" = T2."match_id"
+    AND T1."inning" = T2."inning"
+  WHERE
+    T2.first_wicket_delivery_id IS NULL
+    OR T1."delivery_id" < T2.first_wicket_delivery_id
+  GROUP BY
+    T1."match_id",
+    T1."inning",
+    T1."batting_team"
+), OpeningBatsmen AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id",
+    "non_striker_id"
+  FROM "Deliveries"
+  WHERE
+    "delivery_id" IN (
+      SELECT
+        MIN("delivery_id")
+      FROM "Deliveries"
+      GROUP BY
+        "match_id",
+        "inning"
+    )
+)
+SELECT
+  T1.partnership_runs,
+  T3."player_name",
+  T4."player_name"
+FROM OpeningPartnershipRuns AS T1
+INNER JOIN OpeningBatsmen AS T2
+  ON T1."match_id" = T2."match_id"
+  AND T1."inning" = T2."inning"
+INNER JOIN "Players" AS T3
+  ON T2."striker_id" = T3."player_id"
+INNER JOIN "Players" AS T4
+  ON T2."non_striker_id" = T4."player_id"
+WHERE
+  T1.batting_team = 'Lucknow Super Giants' AND T1.partnership_runs >= 100
+ORDER BY
+  T1.partnership_runs DESC;
+Result: [SUCCESS]
+[(210, 'Q de Kock', 'KL Rahul'), (134, 'Q de Kock', 'KL Rahul'), (115, 'MR Marsh', 'AK Markram')]
+
+--- Entry #91 ---
+Question: list all 10 wicket defeats for dc
+SQL: SELECT "season", "match_date", "venue", "match_winner" FROM "Matches" WHERE "result_type" = 'wickets' AND "result_margin" = 10 AND (CASE WHEN "team1" = "match_winner" THEN "team2" ELSE "team1" END) IN ('Delhi Daredevils', 'Delhi Capitals')
+Result: [SUCCESS]
+[('2015', '2015-04-26', 'Feroz Shah Kotla', 'Royal Challengers Bangalore'), ('2017', '2017-04-30', 'Punjab Cricket Association IS Bindra Stadium, Mohali', 'Kings XI Punjab'), ('2025', '2025-05-18', 'Arun Jaitley Stadium, Delhi', 'Gujarat Titans')]
+
+--- Entry #92 ---
+Question: highest partnership to get a 10-wicket win in ipl
+SQL: WITH TenWicketWinMatches AS (
+  SELECT
+    "match_id",
+    "match_winner"
+  FROM "Matches"
+  WHERE
+    "result_type" = 'wickets' AND "result_margin" = 10
+), PartnershipRuns AS (
+  SELECT
+    T1."match_id",
+    SUM(T2."runs_scored" + T2."extra_runs") AS total_runs
+  FROM TenWicketWinMatches AS T1
+  JOIN "Deliveries" AS T2
+    ON T1."match_id" = T2."match_id"
+  WHERE
+    T2."batting_team" = T1."match_winner"
+  GROUP BY
+    T1."match_id"
+), Partners AS (
+  SELECT
+    T1."match_id",
+    T2."striker_id" AS player_id
+  FROM TenWicketWinMatches AS T1
+  JOIN "Deliveries" AS T2
+    ON T1."match_id" = T2."match_id"
+  WHERE
+    T2."batting_team" = T1."match_winner"
+  UNION
+  SELECT
+    T1."match_id",
+    T2."non_striker_id" AS player_id
+  FROM TenWicketWinMatches AS T1
+  JOIN "Deliveries" AS T2
+    ON T1."match_id" = T2."match_id"
+  WHERE
+    T2."batting_team" = T1."match_winner"
+)
+SELECT
+  T2."total_runs",
+  GROUP_CONCAT(T4."player_name", ' and ') AS partnership_players
+FROM Partners AS T1
+JOIN PartnershipRuns AS T2
+  ON T1."match_id" = T2."match_id"
+JOIN "Players" AS T4
+  ON T1."player_id" = T4."player_id"
+GROUP BY
+  T1."match_id"
+ORDER BY
+  T2."total_runs" DESC
+LIMIT 1;
+Result: [SUCCESS]
+[(205, 'Shubman Gill and B Sai Sudharsan')]
+
+--- Entry #93 ---
+Question: list the 4 highest run chases vs delhi
+SQL: SELECT
+  CASE
+    WHEN T1."batting_team" = 'Kings XI Punjab' THEN 'Punjab Kings'
+    WHEN T1."batting_team" = 'Deccan Chargers' THEN 'Sunrisers Hyderabad'
+    WHEN T1."batting_team" = 'Pune Warriors' THEN 'Rising Pune Supergiant'
+    WHEN T1."batting_team" = 'Rising Pune Supergiants' THEN 'Rising Pune Supergiant'
+    WHEN T1."batting_team" = 'Delhi Daredevils' THEN 'Delhi Capitals'
+    WHEN T1."batting_team" = 'Royal Challengers Bangalore' THEN 'Royal Challengers Bengaluru'
+    ELSE T1."batting_team"
+  END,
+  SUM(T1."runs_scored" + T1."extra_runs")
+FROM Deliveries AS T1
+INNER JOIN Matches AS T2
+  ON T1.match_id = T2.match_id
+WHERE
+  T1.inning = 2 AND T2.match_winner = T1.batting_team AND CASE
+    WHEN T1."bowling_team" = 'Kings XI Punjab' THEN 'Punjab Kings'
+    WHEN T1."bowling_team" = 'Deccan Chargers' THEN 'Sunrisers Hyderabad'
+    WHEN T1."bowling_team" = 'Pune Warriors' THEN 'Rising Pune Supergiant'
+    WHEN T1."bowling_team" = 'Rising Pune Supergiants' THEN 'Rising Pune Supergiant'
+    WHEN T1."bowling_team" = 'Delhi Daredevils' THEN 'Delhi Capitals'
+    WHEN T1."bowling_team" = 'Royal Challengers Bangalore' THEN 'Royal Challengers Bengaluru'
+    ELSE T1."bowling_team"
+  END = 'Delhi Capitals'
+GROUP BY
+  T1.match_id
+ORDER BY
+  SUM(T1."runs_scored" + T1."extra_runs") DESC
+LIMIT 4;
+Result: [SUCCESS]
+[('Gujarat Titans', 205), ('Gujarat Titans', 204), ('Sunrisers Hyderabad', 191), ('Chennai Super Kings', 190)]
+
+--- Entry #94 ---
+Question: list the 4 highest run chases for gt
+SQL: SELECT SUM(T2."runs_scored" + T2."extra_runs") FROM "Matches" AS T1 INNER JOIN "Deliveries" AS T2 ON T1."match_id" = T2."match_id" WHERE T1."match_winner" = 'Gujarat Titans' AND T2."inning" = 1 AND T1."result_type" = 'wickets' GROUP BY T1."match_id" ORDER BY SUM(T2."runs_scored" + T2."extra_runs") DESC LIMIT 4
+Result: [SUCCESS]
+[(203,), (199,), (197,), (196,)]
+
+--- Entry #95 ---
+Question: list all 200+ opening stands in ipl
+SQL: WITH FirstWicket AS (
+  SELECT
+    "match_id",
+    "inning",
+    MIN("delivery_id") AS first_wicket_delivery
+  FROM "Deliveries"
+  WHERE
+    "wicket_type" IS NOT NULL
+  GROUP BY
+    "match_id",
+    "inning"
+), OpeningPartnershipRuns AS (
+  SELECT
+    T1."match_id",
+    T1."inning",
+    SUM(T1."runs_scored" + T1."extra_runs") AS runs
+  FROM "Deliveries" AS T1
+  LEFT JOIN FirstWicket AS T2
+    ON T1."match_id" = T2."match_id"
+    AND T1."inning" = T2."inning"
+  WHERE
+    T2.first_wicket_delivery IS NULL
+    OR T1."delivery_id" < T2.first_wicket_delivery
+  GROUP BY
+    T1."match_id",
+    T1."inning"
+  HAVING
+    runs >= 200
+)
+SELECT
+  T4."player_name",
+  T5."player_name",
+  T1.runs,
+  T6."venue",
+  T6."match_date"
+FROM OpeningPartnershipRuns AS T1
+INNER JOIN "Deliveries" AS T3
+  ON T1."match_id" = T3."match_id"
+  AND T1."inning" = T3."inning"
+INNER JOIN "Players" AS T4
+  ON T3."striker_id" = T4."player_id"
+INNER JOIN "Players" AS T5
+  ON T3."non_striker_id" = T5."player_id"
+INNER JOIN "Matches" AS T6
+  ON T1."match_id" = T6."match_id"
+WHERE
+  T3."over_number" = 0 AND T3."ball_number" = 1
+ORDER BY
+  T1.runs DESC;
+Result: [SUCCESS]
+[('Q de Kock', 'KL Rahul', 210, 'Dr DY Patil Sports Academy, Mumbai', '2022-05-18'), ('B Sai Sudharsan', 'Shubman Gill', 210, 'Narendra Modi Stadium, Ahmedabad', '2024-05-10'), ('B Sai Sudharsan', 'Shubman Gill', 205, 'Arun Jaitley Stadium, Delhi', '2025-05-18')]
+
+--- Entry #96 ---
+Question: list all ipl hundreds made by gt players
+SQL: SELECT T2."player_name", SUM(T1."runs_scored") FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN PlayerInMatch AS T3 ON T1."match_id" = T3."match_id" AND T1."striker_id" = T3."player_id" WHERE T3."team_name" = 'Gujarat Titans' GROUP BY T1."match_id", T1."striker_id" HAVING SUM(T1."runs_scored") >= 100
+Result: [SUCCESS]
+[('Shubman Gill', 101), ('Shubman Gill', 104), ('Shubman Gill', 129), ('Shubman Gill', 104), ('B Sai Sudharsan', 103), ('B Sai Sudharsan', 108)]
+
+--- Entry #97 ---
+Question: the 2 highest opening stands against dc
+SQL: WITH FirstWicket AS (
+  SELECT
+    "match_id",
+    "inning",
+    MIN("delivery_id") AS first_wicket_delivery
+  FROM Deliveries
+  WHERE
+    "player_out_id" IS NOT NULL
+  GROUP BY
+    "match_id",
+    "inning"
+)
+SELECT
+  "batting_team",
+  SUM("runs_scored" + "extra_runs") AS partnership_runs
+FROM Deliveries
+LEFT JOIN FirstWicket
+  ON Deliveries.match_id = FirstWicket.match_id AND Deliveries.inning = FirstWicket.inning
+WHERE
+  (
+    CASE
+      WHEN "bowling_team" IN ('Delhi Daredevils', 'Delhi Capitals')
+      THEN 'Delhi Capitals'
+      ELSE "bowling_team"
+    END
+  ) = 'Delhi Capitals'
+  AND (
+    Deliveries.delivery_id < FirstWicket.first_wicket_delivery
+    OR FirstWicket.first_wicket_delivery IS NULL
+  )
+GROUP BY
+  Deliveries.match_id,
+  Deliveries.inning
+ORDER BY
+  partnership_runs DESC
+LIMIT 2;
+Result: [SUCCESS]
+[('Gujarat Titans', 205), ('Rajasthan Royals', 155)]
+
+--- Entry #98 ---
+Question: the 5 most 100+ partnerships for a pair
+SQL: WITH PartnershipRuns AS (
+  SELECT
+    "match_id",
+    CASE WHEN "striker_id" < "non_striker_id" THEN "striker_id" ELSE "non_striker_id" END AS player1_id,
+    CASE WHEN "striker_id" < "non_striker_id" THEN "non_striker_id" ELSE "striker_id" END AS player2_id,
+    SUM("runs_scored" + "extra_runs") AS partnership_runs
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    player1_id,
+    player2_id
+  HAVING
+    partnership_runs >= 100
+)
+SELECT
+  p1."player_name",
+  p2."player_name",
+  COUNT(*) AS "num_100_plus_partnerships"
+FROM PartnershipRuns AS pr
+JOIN "Players" AS p1
+  ON pr.player1_id = p1."player_id"
+JOIN "Players" AS p2
+  ON pr.player2_id = p2."player_id"
+GROUP BY
+  p1."player_name",
+  p2."player_name"
+ORDER BY
+  "num_100_plus_partnerships" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('V Kohli', 'AB de Villiers', 10), ('V Kohli', 'CH Gayle', 9), ('Shubman Gill', 'B Sai Sudharsan', 7), ('F du Plessis', 'V Kohli', 6), ('S Dhawan', 'DA Warner', 6)]
+
+--- Entry #99 ---
+Question: Most opening stands of more than 50 by a pair in an IPL season
+SQL: WITH FirstWicket AS (
+  SELECT
+    "match_id",
+    "inning",
+    MIN("delivery_id") AS first_wicket_delivery
+  FROM "Deliveries"
+  WHERE
+    "player_out_id" IS NOT NULL
+  GROUP BY
+    "match_id",
+    "inning"
+), OpeningPartnershipRuns AS (
+  SELECT
+    T1."match_id",
+    T1."inning",
+    SUM(T1."runs_scored" + T1."extra_runs") AS partnership_runs
+  FROM "Deliveries" AS T1
+  LEFT JOIN FirstWicket AS T2
+    ON T1."match_id" = T2."match_id"
+    AND T1."inning" = T2."inning"
+  WHERE
+    T1."delivery_id" < T2.first_wicket_delivery OR T2.first_wicket_delivery IS NULL
+  GROUP BY
+    T1."match_id",
+    T1."inning"
+), OpeningPairs AS (
+  SELECT
+    "match_id",
+    "inning",
+    CASE WHEN "striker_id" < "non_striker_id" THEN "striker_id" ELSE "non_striker_id" END AS player1_id,
+    CASE WHEN "striker_id" < "non_striker_id" THEN "non_striker_id" ELSE "striker_id" END AS player2_id
+  FROM "Deliveries"
+  WHERE
+    "over_number" = 0 AND "ball_number" = 1
+)
+SELECT
+  T5."player_name",
+  T6."player_name",
+  T4."season",
+  COUNT(T3."match_id") AS num_50_plus_stands
+FROM OpeningPartnershipRuns AS T3
+INNER JOIN "Matches" AS T4
+  ON T3."match_id" = T4."match_id"
+INNER JOIN OpeningPairs AS T7
+  ON T3."match_id" = T7."match_id"
+  AND T3."inning" = T7."inning"
+INNER JOIN "Players" AS T5
+  ON T7.player1_id = T5."player_id"
+INNER JOIN "Players" AS T6
+  ON T7.player2_id = T6."player_id"
+WHERE
+  T3.partnership_runs > 50
+GROUP BY
+  T4."season",
+  T5."player_name",
+  T6."player_name"
+ORDER BY
+  num_50_plus_stands DESC
+LIMIT 1;
+Result: [SUCCESS]
+[('JM Bairstow', 'DA Warner', '2019', 8)]
+
+--- Entry #100 ---
+Question: show kl rahul's innings progression afteer every 20 balls in dc vs gt in which he made a century in ipl 2025
+SQL: WITH PlayerInnings AS (
+  SELECT
+    "runs_scored",
+    SUM(CASE WHEN "wides" = 0 THEN 1 ELSE 0 END) OVER (
+      ORDER BY
+        "over_number",
+        "ball_number"
+    ) AS "cumulative_balls_faced",
+    SUM("runs_scored") OVER (
+      ORDER BY
+        "over_number",
+        "ball_number"
+    ) AS "cumulative_runs_scored"
+  FROM "Deliveries"
+  WHERE
+    "striker_id" = (
+      SELECT
+        "player_id"
+      FROM "Players"
+      WHERE
+        "player_name" LIKE 'KL Rahul%'
+    ) AND "match_id" = (
+      SELECT
+        T1."match_id"
+      FROM "Deliveries" AS T1
+      INNER JOIN "Players" AS T2
+        ON T1."striker_id" = T2."player_id"
+      INNER JOIN "Matches" AS T3
+        ON T1."match_id" = T3."match_id"
+      WHERE
+        T2."player_name" LIKE 'KL Rahul%' AND T3."season" = '2025' AND (
+          (
+            (
+              CASE
+                WHEN T3."team1" IN ('Delhi Daredevils', 'Delhi Capitals')
+                THEN 'Delhi Capitals'
+                ELSE T3."team1"
+              END
+            ) = 'Delhi Capitals' AND T3."team2" = 'Gujarat Titans'
+          ) OR (
+            T3."team1" = 'Gujarat Titans' AND (
+              CASE
+                WHEN T3."team2" IN ('Delhi Daredevils', 'Delhi Capitals')
+                THEN 'Delhi Capitals'
+                ELSE T3."team2"
+              END
+            ) = 'Delhi Capitals'
+          )
+        )
+      GROUP BY
+        T1."match_id"
+      HAVING
+        SUM(T1."runs_scored") >= 100
+      LIMIT 1
+    )
+)
+SELECT
+  MAX("cumulative_balls_faced") AS "balls_faced",
+  MAX("cumulative_runs_scored") AS "runs_scored"
+FROM PlayerInnings
+WHERE
+  "cumulative_balls_faced" > 0
+GROUP BY
+  ("cumulative_balls_faced" - 1) / 20
+ORDER BY
+  "balls_faced";
+Result: [SUCCESS]
+[(20, 25), (40, 63), (60, 102), (65, 112)]
+
+--- Entry #101 ---
+Question: most balls faced by a batter in ipl 2025 and his score in that inning
+SQL: SELECT T3."player_name", COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS "balls_faced", SUM(T1."runs_scored") AS "score" FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."striker_id" = T3."player_id" WHERE T2."season" = '2025' GROUP BY T1."match_id", T1."inning", T1."striker_id" ORDER BY "balls_faced" DESC LIMIT 1
+Result: [SUCCESS]
+[('KL Rahul', 65, 112)]
+
+--- Entry #102 ---
+Question: list the opening batting partnership average of all teams in ipl 2025
+SQL: SELECT T."batting_team", AVG(T."partnership_runs") AS "average_partnership" FROM (SELECT T1."batting_team", SUM(T1."runs_scored" + T1."extra_runs") AS "partnership_runs" FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" LEFT JOIN (SELECT "match_id", "inning", MIN("delivery_id") AS "first_wicket_delivery_id" FROM Deliveries WHERE "wicket_type" IS NOT NULL GROUP BY "match_id", "inning") AS T3 ON T1."match_id" = T3."match_id" AND T1."inning" = T3."inning" WHERE T2."season" = '2025' AND (T1."delivery_id" < T3."first_wicket_delivery_id" OR T3."first_wicket_delivery_id" IS NULL) GROUP BY T1."batting_team", T1."match_id", T1."inning") AS T GROUP BY T."batting_team" ORDER BY "average_partnership" DESC
+Result: [SUCCESS]
+[('Gujarat Titans', 60.8), ('Lucknow Super Giants', 47.42857142857143), ('Rajasthan Royals', 46.53333333333333), ('Royal Challengers Bengaluru', 45.46666666666667), ('Sunrisers Hyderabad', 40.61538461538461), ('Mumbai Indians', 35.1875), ('Punjab Kings', 33.25), ('Delhi Capitals', 24.46153846153846), ('Chennai Super Kings', 23.53846153846154), ('Kolkata Knight Riders', 20.53846153846154)]
+
+--- Entry #103 ---
+Question: most defeats batting second in an ipl edition.list all such instances.
+SQL: WITH DefeatCounts AS (
+  SELECT
+    "season",
+    CASE
+      WHEN "toss_decision" = 'field' THEN "toss_winner"
+      WHEN "toss_winner" = "team1" THEN "team2"
+      ELSE "team1"
+    END AS chasing_team,
+    "match_winner"
+  FROM "Matches"
+  WHERE
+    "match_winner" IS NOT NULL
+), SeasonDefeats AS (
+  SELECT
+    "season",
+    chasing_team,
+    COUNT(*) AS num_defeats
+  FROM DefeatCounts
+  WHERE
+    chasing_team <> "match_winner"
+  GROUP BY
+    "season",
+    chasing_team
+)
+SELECT
+  chasing_team,
+  "season",
+  num_defeats
+FROM SeasonDefeats
+WHERE
+  num_defeats = (
+    SELECT
+      MAX(num_defeats)
+    FROM SeasonDefeats
+  )
+ORDER BY
+  "season";
+Result: [SUCCESS]
+[('Pune Warriors', '2012', 8), ('Pune Warriors', '2013', 8)]
+
+--- Entry #104 ---
+Question: how many wickets have been lost by every team in the middle overs phase in ipl 2025.
+SQL: SELECT T2."batting_team", COUNT(T2."delivery_id") FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1."match_id" = T2."match_id" WHERE T1."season" = '2025' AND T2."over_number" > 5 AND T2."over_number" < 16 AND T2."wicket_type" IS NOT NULL GROUP BY T2."batting_team" ORDER BY COUNT(T2."delivery_id") DESC
+Result: [SUCCESS]
+[('Punjab Kings', 51), ('Rajasthan Royals', 45), ('Kolkata Knight Riders', 44), ('Royal Challengers Bengaluru', 40), ('Lucknow Super Giants', 40), ('Chennai Super Kings', 40), ('Mumbai Indians', 39), ('Sunrisers Hyderabad', 37), ('Delhi Capitals', 35), ('Gujarat Titans', 29)]
+
+--- Entry #105 ---
+Question: the 5 highest average run rates over a season by a team in powerplay.
+SQL: SELECT
+  m.season,
+  CASE
+    WHEN d.batting_team IN ('Kings XI Punjab', 'Punjab Kings')
+    THEN 'Punjab Kings'
+    WHEN d.batting_team IN ('Deccan Chargers', 'Sunrisers Hyderabad')
+    THEN 'Sunrisers Hyderabad'
+    WHEN d.batting_team IN ('Delhi Daredevils', 'Delhi Capitals')
+    THEN 'Delhi Capitals'
+    WHEN d.batting_team IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants')
+    THEN 'Rising Pune Supergiant'
+    WHEN d.batting_team IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru')
+    THEN 'Royal Challengers Bengaluru'
+    ELSE d.batting_team
+  END AS franchise,
+  SUM(d.runs_scored + d.extra_runs) * 6.0 / COUNT(
+    CASE WHEN d.wides = 0 AND d.noballs = 0 THEN 1 END
+  ) AS run_rate
+FROM Deliveries AS d
+JOIN Matches AS m
+  ON d.match_id = m.match_id
+WHERE
+  d.over_number <= 5
+GROUP BY
+  m.season,
+  franchise
+ORDER BY
+  run_rate DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('2024', 'Sunrisers Hyderabad', 11.177083333333334), ('2024', 'Kolkata Knight Riders', 11.071428571428571), ('2025', 'Rajasthan Royals', 10.903732809430256), ('2024', 'Delhi Capitals', 10.678571428571429), ('2025', 'Kolkata Knight Riders', 9.904109589041095)]
+
+--- Entry #106 ---
+Question: highest powerplay score of rr.
+SQL: SELECT SUM("runs_scored" + "extra_runs") FROM "Deliveries" WHERE "batting_team" = 'Rajasthan Royals' AND "over_number" <= 5 GROUP BY "match_id", "inning" ORDER BY SUM("runs_scored" + "extra_runs") DESC LIMIT 1
+Result: [SUCCESS]
+[(89,)]
+
+--- Entry #107 ---
+Question: 5 highest strike rate in ipl 2025 by a batter.(minimum 50 balls faced)
+SQL: SELECT T2."player_name", CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T3."season" = '2025' GROUP BY T1."striker_id" HAVING COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) >= 50 ORDER BY CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) DESC LIMIT 5
+Result: [SUCCESS]
+[('V Suryavanshi', 206.55737704918033), ('N Pooran', 196.2546816479401), ('Abhishek Sharma', 193.3920704845815), ('A Mhatre', 188.9763779527559), ('MP Stoinis', 186.04651162790697)]
+
+--- Entry #108 ---
+Question: fastest team fifty in ipl 2025
+SQL: WITH MatchProgress AS (
+  SELECT
+    "match_id",
+    "batting_team",
+    SUM("runs_scored" + "extra_runs") OVER (PARTITION BY "match_id", "batting_team" ORDER BY "over_number", "ball_number") AS "cumulative_runs",
+    SUM(CASE WHEN "wides" = 0 AND "noballs" = 0 THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id", "batting_team" ORDER BY "over_number", "ball_number") AS "cumulative_legal_balls"
+  FROM "Deliveries"
+), FiftyMilestones AS (
+  SELECT
+    "match_id",
+    "batting_team",
+    "cumulative_legal_balls",
+    ROW_NUMBER() OVER (PARTITION BY "match_id", "batting_team" ORDER BY "cumulative_legal_balls") AS "rn"
+  FROM MatchProgress
+  WHERE
+    "cumulative_runs" >= 50
+)
+SELECT
+  T2."batting_team",
+  T2."cumulative_legal_balls" AS "balls_to_reach_50"
+FROM "Matches" AS T1
+INNER JOIN FiftyMilestones AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T1."season" = '2025' AND T2."rn" = 1
+ORDER BY
+  "balls_to_reach_50" ASC
+LIMIT 1;
+Result: [SUCCESS]
+[('Rajasthan Royals', 17)]
+
+--- Entry #109 ---
+Question: list all instances of a team scoring 20 or more runs in 1st over of an ipl inning.list the year, team and runs
+SQL: SELECT T2.season, T1.batting_team, SUM(T1.runs_scored + T1.extra_runs) FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T1.over_number = 0 GROUP BY T1.match_id, T1.inning HAVING SUM(T1.runs_scored + T1.extra_runs) >= 20 ORDER BY SUM(T1.runs_scored + T1.extra_runs) DESC
+Result: [SUCCESS]
+[('2011', 'Royal Challengers Bangalore', 27), ('2013', 'Kolkata Knight Riders', 26), ('2023', 'Rajasthan Royals', 26), ('2021', 'Delhi Capitals', 25), ('2019', 'Royal Challengers Bangalore', 23), ('2024', 'Kolkata Knight Riders', 23), ('2009', 'Rajasthan Royals', 22), ('2024', 'Kolkata Knight Riders', 22), ('2025', 'Rajasthan Royals', 22), ('2009', 'Deccan Chargers', 21), ('2018', 'Kolkata Knight Riders', 21), ('2013', 'Sunrisers Hyderabad', 20), ('2014', 'Royal Challengers Bangalore', 20), ('2023', 'Rajasthan Royals', 20)]
+
+--- Entry #110 ---
+Question: list the match in 2013 when hyderabad scored its highest runs in 1st over of 2013
+SQL: SELECT T1.match_id FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T2.season = '2013' AND T1.over_number = 0 AND CASE WHEN T1.batting_team = 'Deccan Chargers' THEN 'Sunrisers Hyderabad' WHEN T1.batting_team = 'Sunrisers Hyderabad' THEN 'Sunrisers Hyderabad' ELSE T1.batting_team END = 'Sunrisers Hyderabad' GROUP BY T1.match_id ORDER BY SUM(T1.runs_scored + T1.extra_runs) DESC LIMIT 1
+Result: [SUCCESS]
+[(598004,)]
+
+--- Entry #111 ---
+Question: list the 2 instances of most runs given by a punjab bowler in the 1st over of an inning
+SQL: SELECT T2."player_name", SUM(T1."runs_scored" + T1."wides" + T1."noballs") AS "runs_conceded" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" WHERE T1."over_number" = 0 AND CASE WHEN T1."bowling_team" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings' ELSE T1."bowling_team" END = 'Punjab Kings' GROUP BY T1."match_id", T1."inning", T2."player_name" ORDER BY "runs_conceded" DESC LIMIT 2
+Result: [SUCCESS]
+[('Arshdeep Singh', 22), ('GJ Maxwell', 20)]
+
+--- Entry #112 ---
+Question: list bowling stats of Fazalhaq Farooqi in IPL 2025
+SQL: SELECT
+  SUM(T1.runs_scored + T1.wides + T1.noballs) AS "Runs Conceded",
+  COUNT(
+    CASE
+      WHEN T1.wicket_type IS NOT NULL AND T1.wicket_type NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+      THEN 1
+    END
+  ) AS "Wickets",
+  CAST(COUNT(CASE WHEN T1.wides = 0 AND T1.noballs = 0 THEN 1 END) / 6 AS TEXT) || '.' || CAST(COUNT(CASE WHEN T1.wides = 0 AND T1.noballs = 0 THEN 1 END) % 6 AS TEXT) AS "Overs Bowled",
+  (SUM(T1.runs_scored + T1.wides + T1.noballs) * 6.0) / COUNT(CASE WHEN T1.wides = 0 AND T1.noballs = 0 THEN 1 END) AS "Economy Rate"
+FROM Deliveries AS T1
+INNER JOIN Players AS T2
+  ON T1.bowler_id = T2.player_id
+INNER JOIN Matches AS T3
+  ON T1.match_id = T3.match_id
+WHERE
+  T2.player_name LIKE 'Fazalhaq Farooqi%' AND T3.season = '2025';
+Result: [SUCCESS]
+[(210, 0, '17.0', 12.352941176470589)]
+
+--- Entry #113 ---
+Question: list the instance of most runs aggregated by batsmen 4 to 7 in an ipl match
+SQL: SELECT
+  T3."venue",
+  T1."batting_team",
+  SUM(T1."runs_scored") AS "total_runs"
+FROM "Deliveries" AS T1
+INNER JOIN (
+  SELECT
+    "match_id",
+    "inning",
+    "batting_team",
+    "striker_id",
+    ROW_NUMBER() OVER (PARTITION BY "match_id", "inning", "batting_team" ORDER BY MIN("delivery_id")) AS "batting_position"
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "inning",
+    "batting_team",
+    "striker_id"
+) AS T2
+  ON T1."match_id" = T2."match_id"
+  AND T1."inning" = T2."inning"
+  AND T1."batting_team" = T2."batting_team"
+  AND T1."striker_id" = T2."striker_id"
+INNER JOIN "Matches" AS T3
+  ON T1."match_id" = T3."match_id"
+WHERE
+  T2."batting_position" BETWEEN 4 AND 7
+GROUP BY
+  T1."match_id",
+  T1."inning",
+  T1."batting_team"
+ORDER BY
+  "total_runs" DESC
+LIMIT 1;
+Result: [SUCCESS]
+[('Sawai Mansingh Stadium, Jaipur', 'Punjab Kings', 180)]
+
+--- Entry #114 ---
+Question: 5 Highest totals after being 3 down for < 35 in an IPL innings
+SQL: WITH InningsProgress AS (
+  SELECT
+    "match_id",
+    "inning",
+    SUM(CASE WHEN "player_out_id" IS NOT NULL THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS "wickets_down",
+    SUM("runs_scored" + "extra_runs") OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS "current_score"
+  FROM "Deliveries"
+), QualifyingInnings AS (
+  SELECT DISTINCT
+    "match_id",
+    "inning"
+  FROM InningsProgress
+  WHERE
+    "wickets_down" = 3 AND "current_score" < 35
+)
+SELECT
+  T2."batting_team",
+  SUM(T2."runs_scored" + T2."extra_runs") AS "final_total"
+FROM QualifyingInnings AS T1
+JOIN "Deliveries" AS T2
+  ON T1."match_id" = T2."match_id" AND T1."inning" = T2."inning"
+GROUP BY
+  T1."match_id",
+  T1."inning",
+  T2."batting_team"
+ORDER BY
+  "final_total" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('Punjab Kings', 219), ('Lucknow Super Giants', 213), ('Delhi Capitals', 211), ('Kolkata Knight Riders', 208), ('Kolkata Knight Riders', 205)]
+
+--- Entry #115 ---
+Question: list all 200-plus first innings totals in IPL matches in Jaipur
+SQL: SELECT T1.match_id, T1.venue, SUM(T2.runs_scored + T2.extra_runs) AS total_runs FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id WHERE T1.city = 'Jaipur' AND T2.inning = 1 GROUP BY T1.match_id HAVING SUM(T2.runs_scored + T2.extra_runs) >= 200 ORDER BY total_runs DESC
+Result: [SUCCESS]
+[(1473497, 'Sawai Mansingh Stadium, Jaipur', 219), (1473487, 'Sawai Mansingh Stadium, Jaipur', 217), (1359526, 'Sawai Mansingh Stadium, Jaipur', 214), (1473484, 'Sawai Mansingh Stadium, Jaipur', 209), (1485779, 'Sawai Mansingh Stadium, Jaipur', 206), (1359511, 'Sawai Mansingh Stadium, Jaipur', 202)]
+
+--- Entry #116 ---
+Question: list wadhera's all scores against rr in ipl
+SQL: SELECT SUM(T1.runs_scored), T3.match_date FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.striker_id = T2.player_id INNER JOIN Matches AS T3 ON T1.match_id = T3.match_id WHERE T2.player_name LIKE 'N Wadhera%' AND T1.bowling_team = 'Rajasthan Royals' GROUP BY T1.match_id
+Result: [SUCCESS]
+[(49, '2024-04-22'), (62, '2025-04-05'), (70, '2025-05-18')]
+
+--- Entry #117 ---
+Question: list instances of csk chasing down a target of 180+.List the teams, target and the year
+SQL: WITH FirstInningScores AS (
+  SELECT
+    "match_id",
+    SUM("runs_scored" + "extra_runs") AS first_inning_total
+  FROM "Deliveries"
+  WHERE
+    "inning" = 1
+  GROUP BY
+    "match_id"
+)
+SELECT
+  CASE
+    WHEN T1."team1" = 'Chennai Super Kings' THEN CASE
+      WHEN T1."team2" IN ('Deccan Chargers', 'Sunrisers Hyderabad') THEN 'Sunrisers Hyderabad'
+      WHEN T1."team2" IN ('Delhi Daredevils', 'Delhi Capitals') THEN 'Delhi Capitals'
+      WHEN T1."team2" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+      WHEN T1."team2" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants') THEN 'Rising Pune Supergiant'
+      WHEN T1."team2" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru'
+      ELSE T1."team2"
+    END
+    ELSE CASE
+      WHEN T1."team1" IN ('Deccan Chargers', 'Sunrisers Hyderabad') THEN 'Sunrisers Hyderabad'
+      WHEN T1."team1" IN ('Delhi Daredevils', 'Delhi Capitals') THEN 'Delhi Capitals'
+      WHEN T1."team1" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+      WHEN T1."team1" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants') THEN 'Rising Pune Supergiant'
+      WHEN T1."team1" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru'
+      ELSE T1."team1"
+    END
+  END AS opponent_team,
+  T2.first_inning_total + 1 AS target,
+  T1."season"
+FROM "Matches" AS T1
+INNER JOIN FirstInningScores AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T1."match_winner" = 'Chennai Super Kings' AND T1."result_type" = 'wickets' AND T2.first_inning_total >= 179;
+Result: [SUCCESS]
+[('Delhi Capitals', 188, '2007/08'), ('Delhi Capitals', 186, '2009/10'), ('Punjab Kings', 193, '2009/10'), ('Royal Challengers Bengaluru', 206, '2012'), ('Rajasthan Royals', 186, '2013'), ('Mumbai Indians', 184, '2015'), ('Kolkata Knight Riders', 203, '2018'), ('Royal Challengers Bengaluru', 206, '2018'), ('Sunrisers Hyderabad', 180, '2018'), ('Gujarat Titans', 215, '2023'), ('Kolkata Knight Riders', 180, '2025')]
+
+--- Entry #118 ---
+Question: give the 3 highest targets chased down after losing first 5 wickets for 75 or lower.list the teams, target and the year.
+SQL: WITH WicketFallInfo AS (
+  SELECT
+    "match_id",
+    "batting_team",
+    SUM("runs_scored" + "extra_runs") OVER (PARTITION BY "match_id" ORDER BY "over_number", "ball_number") AS cumulative_score,
+    SUM(CASE WHEN "wicket_type" IS NOT NULL AND "wicket_type" <> 'retired hurt' THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id" ORDER BY "over_number", "ball_number") AS wicket_count
+  FROM "Deliveries"
+  WHERE
+    "inning" = 2
+), FifthWicketScores AS (
+  SELECT
+    "match_id",
+    "batting_team",
+    MIN(cumulative_score) AS score_at_5th_wicket
+  FROM WicketFallInfo
+  WHERE
+    wicket_count = 5
+  GROUP BY
+    "match_id",
+    "batting_team"
+), Targets AS (
+  SELECT
+    "match_id",
+    SUM("runs_scored" + "extra_runs") + 1 AS target
+  FROM "Deliveries"
+  WHERE
+    "inning" = 1
+  GROUP BY
+    "match_id"
+)
+SELECT
+  CASE
+    WHEN T3."match_winner" IN ('Delhi Daredevils', 'Delhi Capitals') THEN 'Delhi Capitals'
+    WHEN T3."match_winner" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+    WHEN T3."match_winner" IN ('Deccan Chargers', 'Sunrisers Hyderabad') THEN 'Sunrisers Hyderabad'
+    WHEN T3."match_winner" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants') THEN 'Rising Pune Supergiant'
+    WHEN T3."match_winner" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru'
+    ELSE T3."match_winner"
+  END AS "winning_team",
+  T2.target,
+  T3."season"
+FROM FifthWicketScores AS T1
+JOIN Targets AS T2
+  ON T1."match_id" = T2."match_id"
+JOIN Matches AS T3
+  ON T1."match_id" = T3."match_id"
+WHERE
+  T1.score_at_5th_wicket <= 75 AND T1."batting_team" = T3."match_winner"
+ORDER BY
+  T2.target DESC
+LIMIT 3;
+Result: [SUCCESS]
+[('Delhi Capitals', 210, '2025'), ('Chennai Super Kings', 180, '2025'), ('Delhi Capitals', 178, '2022')]
+
+--- Entry #119 ---
+Question: list the 3 highest runs given by a kkr bowler in an over.list the bowler, runs given, the opponent and the year.
+SQL: SELECT T2."player_name", SUM(T1."runs_scored" + T1."wides" + T1."noballs") AS "runs_conceded", T1."batting_team", T3."season" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T1."bowling_team" = 'Kolkata Knight Riders' GROUP BY T1."match_id", T1."inning", T1."over_number", T1."bowler_id" ORDER BY "runs_conceded" DESC LIMIT 3
+Result: [SUCCESS]
+[('MM Ali', 32, 'Rajasthan Royals', '2025'), ('Shivam Mavi', 30, 'Lucknow Super Giants', '2022'), ('VG Arora', 30, 'Chennai Super Kings', '2025')]
+
+--- Entry #120 ---
+Question: Of the matches that were played for 20 overs, list the two highest powerplay score by a team losing five or more wickets in Powerplay in IPL.list the teams, runs in pp, the opponent and the year.
+SQL: SELECT
+  T1."batting_team",
+  T1."powerplay_runs",
+  CASE
+    WHEN T1."batting_team" = T2."team1"
+    THEN T2."team2"
+    ELSE T2."team1"
+  END AS "opponent",
+  T2."season"
+FROM (
+  SELECT
+    "match_id",
+    "batting_team",
+    SUM("runs_scored" + "extra_runs") AS "powerplay_runs"
+  FROM "Deliveries"
+  WHERE
+    "over_number" <= 5
+  GROUP BY
+    "match_id",
+    "batting_team"
+  HAVING
+    COUNT("player_out_id") >= 5
+) AS T1
+JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T1."match_id" IN (
+    SELECT
+      "match_id"
+    FROM "Deliveries"
+    GROUP BY
+      "match_id"
+    HAVING
+      MAX("over_number") >= 19
+  )
+ORDER BY
+  T1."powerplay_runs" DESC
+LIMIT 2;
+Result: [SUCCESS]
+[('Rajasthan Royals', 62, 'Mumbai Indians', '2025'), ('Chennai Super Kings', 62, 'Kolkata Knight Riders', '2025')]
+
+--- Entry #121 ---
+Question: Highest SR in debut IPL innings (10+ balls)
+SQL: WITH DebutInnings AS (
+  SELECT
+    "player_id",
+    MIN("match_id") AS debut_match_id
+  FROM PlayerInMatch
+  GROUP BY
+    "player_id"
+)
+SELECT
+  T3."player_name",
+  SUM(T2."runs_scored") * 100.0 / COUNT(CASE WHEN T2."wides" = 0 THEN 1 END) AS strike_rate
+FROM DebutInnings AS T1
+JOIN Deliveries AS T2
+  ON T1."player_id" = T2."striker_id" AND T1."debut_match_id" = T2."match_id"
+JOIN Players AS T3
+  ON T1."player_id" = T3."player_id"
+GROUP BY
+  T1."player_id"
+HAVING
+  COUNT(CASE WHEN T2."wides" = 0 THEN 1 END) >= 10
+ORDER BY
+  strike_rate DESC
+LIMIT 1;
+Result: [SUCCESS]
+[('Urvil Patel', 281.8181818181818)]
+
+--- Entry #122 ---
+Question: 5 Highest SR for a player the first time they feature in the playing eleven.minimum 10 balls.list the player, teams, player score and the balls, and the year.
+SQL: WITH DebutMatches AS (
+  SELECT
+    T1."player_id",
+    T1."match_id",
+    ROW_NUMBER() OVER (PARTITION BY T1."player_id" ORDER BY T2."match_date") AS rn
+  FROM "PlayerInMatch" AS T1
+  JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+), BattingStats AS (
+  SELECT
+    "match_id",
+    "striker_id",
+    SUM("runs_scored") AS player_score,
+    COUNT(CASE WHEN "wides" = 0 THEN 1 END) AS balls_faced,
+    SUM("runs_scored") * 100.0 / COUNT(CASE WHEN "wides" = 0 THEN 1 END) AS strike_rate
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "striker_id"
+)
+SELECT
+  T4."player_name",
+  T3."team1" || ' vs ' || T3."team2" AS teams,
+  T2.player_score,
+  T2.balls_faced,
+  T3."season"
+FROM DebutMatches AS T1
+JOIN BattingStats AS T2
+  ON T1."match_id" = T2."match_id" AND T1."player_id" = T2."striker_id"
+JOIN "Matches" AS T3
+  ON T1."match_id" = T3."match_id"
+JOIN "Players" AS T4
+  ON T1."player_id" = T4."player_id"
+WHERE
+  T1.rn = 1 AND T2.balls_faced >= 10
+ORDER BY
+  T2.strike_rate DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('Urvil Patel', 'Kolkata Knight Riders vs Chennai Super Kings', 31, 11, '2025'), ('V Nigam', 'Lucknow Super Giants vs Delhi Capitals', 39, 15, '2025'), ('R Ravindra', 'Royal Challengers Bengaluru vs Chennai Super Kings', 37, 15, '2024'), ('SK Raina', 'Kings XI Punjab vs Chennai Super Kings', 32, 13, '2007/08'), ('Abhishek Sharma', 'Delhi Daredevils vs Royal Challengers Bangalore', 46, 19, '2018')]
+
+--- Entry #123 ---
+Question: list all instances of a team losing both its openers for nought.list the teams, openers and the year
+SQL: SELECT
+  T3."season",
+  T1."batting_team",
+  T4."player_name",
+  T5."player_name"
+FROM (
+  SELECT
+    "match_id",
+    "batting_team",
+    "striker_id" AS opener1,
+    "non_striker_id" AS opener2
+  FROM "Deliveries"
+  WHERE
+    "over_number" = 0 AND "ball_number" = 1
+) AS T1
+INNER JOIN "Matches" AS T3
+  ON T1."match_id" = T3."match_id"
+INNER JOIN "Players" AS T4
+  ON T1.opener1 = T4."player_id"
+INNER JOIN "Players" AS T5
+  ON T1.opener2 = T5."player_id"
+WHERE
+  (
+    SELECT
+      SUM("runs_scored")
+    FROM "Deliveries"
+    WHERE
+      "match_id" = T1."match_id" AND "striker_id" = T1.opener1
+  ) = 0
+  AND (
+    SELECT
+      SUM("runs_scored")
+    FROM "Deliveries"
+    WHERE
+      "match_id" = T1."match_id" AND "striker_id" = T1.opener2
+  ) = 0
+  AND T1.opener1 IN (
+    SELECT
+      "player_out_id"
+    FROM "Deliveries"
+    WHERE
+      "match_id" = T1."match_id"
+  )
+  AND T1.opener2 IN (
+    SELECT
+      "player_out_id"
+    FROM "Deliveries"
+    WHERE
+      "match_id" = T1."match_id"
+  );
+Result: [SUCCESS]
+[('2007/08', 'Chennai Super Kings', 'PA Patel', 'SP Fleming'), ('2009', 'Rajasthan Royals', 'GC Smith', 'SA Asnodkar'), ('2009', 'Deccan Chargers', 'AC Gilchrist', 'HH Gibbs'), ('2009', 'Mumbai Indians', 'L Ronchi', 'JP Duminy'), ('2009', 'Mumbai Indians', 'L Ronchi', 'JP Duminy'), ('2009', 'Delhi Daredevils', 'G Gambhir', 'DA Warner'), ('2011', 'Kochi Tuskers Kerala', 'BB McCullum', 'VVS Laxman'), ('2014', 'Kolkata Knight Riders', 'JH Kallis', 'G Gambhir'), ('2020/21', 'Delhi Capitals', 'PP Shaw', 'S Dhawan'), ('2022', 'Mumbai Indians', 'RG Sharma', 'Ishan Kishan'), ('2023', 'Rajasthan Royals', 'YBK Jaiswal', 'JC Buttler'), ('2023', 'Rajasthan Royals', 'YBK Jaiswal', 'JC Buttler'), ('2025', 'Chennai Super Kings', 'A Mhatre', 'DP Conway')]
+
+--- Entry #124 ---
+Question: list the 5 highest strike rates of a player with minimum 10 balls played in their debut ipl match.give the player, their runs and balls in that match, teams in that match, and year
+SQL: WITH DebutMatches AS (
+  SELECT
+    "player_id",
+    MIN("match_id") AS debut_match_id
+  FROM PlayerInMatch
+  GROUP BY
+    "player_id"
+)
+SELECT
+  T2."player_name",
+  SUM(T1."runs_scored") AS "runs",
+  COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS "balls_faced",
+  SUM(T1."runs_scored") * 100.0 / COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS "strike_rate",
+  T3."team1",
+  T3."team2",
+  T3."season"
+FROM Deliveries AS T1
+INNER JOIN DebutMatches AS DM
+  ON T1."striker_id" = DM."player_id" AND T1."match_id" = DM.debut_match_id
+INNER JOIN Players AS T2
+  ON T1."striker_id" = T2."player_id"
+INNER JOIN Matches AS T3
+  ON T1."match_id" = T3."match_id"
+GROUP BY
+  T2."player_name",
+  T3."team1",
+  T3."team2",
+  T3."season"
+HAVING
+  COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) >= 10
+ORDER BY
+  "strike_rate" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('Urvil Patel', 31, 11, 281.8181818181818, 'Kolkata Knight Riders', 'Chennai Super Kings', '2025'), ('V Nigam', 39, 15, 260.0, 'Lucknow Super Giants', 'Delhi Capitals', '2025'), ('R Ravindra', 37, 15, 246.66666666666666, 'Royal Challengers Bengaluru', 'Chennai Super Kings', '2024'), ('SK Raina', 32, 13, 246.15384615384616, 'Kings XI Punjab', 'Chennai Super Kings', '2007/08'), ('Abhishek Sharma', 46, 19, 242.10526315789474, 'Delhi Daredevils', 'Royal Challengers Bangalore', '2018')]
+
+--- Entry #125 ---
+Question: mention every wright's inning for pune.list the match id, player, teams, player score and the balls, and the year.
+SQL: SELECT T2."match_id", T3."player_name", T2."team1", T2."team2", SUM(T1."runs_scored") AS "player_score", COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS "balls_faced", T2."season" FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."striker_id" = T3."player_id" WHERE T3."player_name" LIKE '%Wright' AND T1."batting_team" = 'Pune Warriors' GROUP BY T1."match_id", T3."player_name" ORDER BY T2."match_date"
+Result: [SUCCESS]
+[(598025, 'LJ Wright', 'Kings XI Punjab', 'Pune Warriors', 34, 10, '2013'), (598027, 'LJ Wright', 'Royal Challengers Bangalore', 'Pune Warriors', 7, 3, '2013'), (598035, 'LJ Wright', 'Delhi Daredevils', 'Pune Warriors', 19, 18, '2013'), (598038, 'LJ Wright', 'Pune Warriors', 'Chennai Super Kings', 2, 6, '2013'), (598067, 'LJ Wright', 'Pune Warriors', 'Delhi Daredevils', 44, 23, '2013')]
+
+--- Entry #126 ---
+Question: list the 5 highest strike rates of a player with minimum 10 balls played in their debut ipl inning(the first time they batted in ipl).give the player, their runs and balls in that match, teams in that match, and year.
+SQL: WITH DebutInning AS (
+  SELECT
+    "striker_id",
+    MIN("match_date") AS debut_date
+  FROM "Deliveries"
+  JOIN "Matches"
+    ON "Deliveries"."match_id" = "Matches"."match_id"
+  GROUP BY
+    "striker_id"
+)
+SELECT
+  T4."player_name",
+  SUM(T2."runs_scored") AS runs,
+  COUNT(CASE WHEN T2."wides" = 0 THEN 1 END) AS balls_faced,
+  T3."team1",
+  T3."team2",
+  T3."season"
+FROM DebutInning AS T1
+JOIN "Deliveries" AS T2
+  ON T1."striker_id" = T2."striker_id"
+JOIN "Matches" AS T3
+  ON T2."match_id" = T3."match_id"
+  AND T1.debut_date = T3."match_date"
+JOIN "Players" AS T4
+  ON T1."striker_id" = T4."player_id"
+GROUP BY
+  T1."striker_id",
+  T2."match_id"
+HAVING
+  COUNT(CASE WHEN T2."wides" = 0 THEN 1 END) >= 10
+ORDER BY
+  SUM(T2."runs_scored") * 100.0 / COUNT(CASE WHEN T2."wides" = 0 THEN 1 END) DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('LJ Wright', 34, 10, 'Kings XI Punjab', 'Pune Warriors', '2013'), ('Urvil Patel', 31, 11, 'Kolkata Knight Riders', 'Chennai Super Kings', '2025'), ('V Nigam', 39, 15, 'Lucknow Super Giants', 'Delhi Capitals', '2025'), ('R Ravindra', 37, 15, 'Royal Challengers Bengaluru', 'Chennai Super Kings', '2024'), ('SK Raina', 32, 13, 'Kings XI Punjab', 'Chennai Super Kings', '2007/08')]
+
+--- Entry #127 ---
+Question: give the players who did not hit a boundary in the first 20 balls of their innings in ipl 2025.give the player name and their score in that match
+SQL: WITH RankedBalls AS (
+  SELECT
+    T1."match_id",
+    T1."striker_id",
+    T1."runs_scored",
+    ROW_NUMBER() OVER (PARTITION BY T1."match_id", T1."striker_id" ORDER BY T1."inning", T1."over_number", T1."ball_number") AS ball_faced_num
+  FROM "Deliveries" AS T1
+  INNER JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+  WHERE
+    T2."season" = '2025' AND T1."wides" = 0
+), NoBoundaryInnings AS (
+  SELECT
+    "match_id",
+    "striker_id"
+  FROM RankedBalls
+  GROUP BY
+    "match_id",
+    "striker_id"
+  HAVING
+    MAX(ball_faced_num) >= 20
+    AND SUM(CASE WHEN ball_faced_num <= 20 AND "runs_scored" IN (4, 6) THEN 1 ELSE 0 END) = 0
+)
+SELECT
+  T4."player_name",
+  SUM(T1."runs_scored") AS score_in_match
+FROM "Deliveries" AS T1
+INNER JOIN NoBoundaryInnings AS T2
+  ON T1."match_id" = T2."match_id" AND T1."striker_id" = T2."striker_id"
+INNER JOIN "Players" AS T4
+  ON T1."striker_id" = T4."player_id"
+GROUP BY
+  T4."player_name",
+  T1."match_id"
+Result: [SUCCESS]
+[('MK Pandey', 36)]
+
+--- Entry #128 ---
+Question: which bowlers have taken the most wickets playing for csk?give the top 5 with their wickets for csk
+SQL: SELECT T2.player_name, COUNT(T1.delivery_id) AS wickets FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.bowler_id = T2.player_id WHERE T1.bowling_team = 'Chennai Super Kings' AND T1.wicket_type IS NOT NULL AND T1.wicket_type NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') GROUP BY T2.player_name ORDER BY wickets DESC LIMIT 5
+Result: [SUCCESS]
+[('RA Jadeja', 143), ('DJ Bravo', 140), ('R Ashwin', 97), ('JA Morkel', 76), ('DL Chahar', 76)]
+
+--- Entry #129 ---
+Question: how many catches and stumpings has ms dhoni inflicted?
+SQL: SELECT T1."wicket_type", count(T1."wicket_type") FROM Deliveries AS T1 INNER JOIN FielderDismissals AS T2 ON T1.delivery_id = T2.delivery_id INNER JOIN Players AS T3 ON T2.fielder_id = T3.player_id WHERE T3.player_name = 'MS Dhoni' AND T1.wicket_type IN ('caught', 'stumped') GROUP BY T1.wicket_type
+Result: [SUCCESS]
+[('caught', 158), ('stumped', 47)]
+
+--- Entry #130 ---
+Question: 4 Highest SR vs a bowler in IPL (50+ balls)give runs and balls too
+SQL: SELECT T2."player_name", T3."player_name", SUM(T1."runs_scored") AS "runs", COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS "balls", CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS "strike_rate" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN Players AS T3 ON T1."bowler_id" = T3."player_id" GROUP BY T2."player_name", T3."player_name" HAVING COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) >= 50 ORDER BY "strike_rate" DESC LIMIT 4
+Result: [SUCCESS]
+[('SP Narine', 'R Ashwin', 133, 57, 233.33333333333334), ('KA Pollard', 'RA Jadeja', 114, 51, 223.52941176470588), ('RR Pant', 'B Kumar', 120, 54, 222.22222222222223), ('SK Raina', 'Sandeep Sharma', 110, 53, 207.54716981132074)]
+
+--- Entry #131 ---
+Question: list all instances of most balls bowled in an over.give balls, bowler, team in the match and the year
+SQL: WITH OverCounts AS (
+  SELECT
+    "match_id",
+    "bowler_id",
+    "bowling_team",
+    COUNT(*) AS balls_in_over
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "inning",
+    "over_number"
+)
+SELECT
+  T1.balls_in_over,
+  T3."player_name",
+  T1."bowling_team",
+  T2."season"
+FROM OverCounts AS T1
+JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id"
+JOIN "Players" AS T3
+  ON T1."bowler_id" = T3."player_id"
+WHERE
+  T1.balls_in_over = (
+    SELECT
+      MAX(balls_in_over)
+    FROM OverCounts
+  );
+Result: [SUCCESS]
+[(11, 'Mohammed Siraj', 'Royal Challengers Bangalore', '2023'), (11, 'TU Deshpande', 'Chennai Super Kings', '2023'), (11, 'SN Thakur', 'Lucknow Super Giants', '2025'), (11, 'Sandeep Sharma', 'Rajasthan Royals', '2025'), (11, 'HH Pandya', 'Mumbai Indians', '2025')]
+
+--- Entry #132 ---
+Question: give the lowest powerplay scores of ipl 2025.give the teams involved in the match, powerplay score with wickets and the city.(consider the matches that were played complete)
+SQL: SELECT
+  T1."team1",
+  T1."team2",
+  T2."batting_team",
+  T2.pp_runs || '/' || T2.pp_wickets AS powerplay_score,
+  T1."city"
+FROM Matches AS T1
+INNER JOIN (
+  SELECT
+    "match_id",
+    "batting_team",
+    SUM("runs_scored" + "extra_runs") AS pp_runs,
+    COUNT("player_out_id") AS pp_wickets
+  FROM Deliveries
+  WHERE
+    "over_number" <= 5
+  GROUP BY
+    "match_id",
+    "batting_team"
+) AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T1."season" = '2025' AND T1."result_type" IN ('runs', 'wickets')
+ORDER BY
+  pp_runs ASC,
+  pp_wickets DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('Sunrisers Hyderabad', 'Mumbai Indians', 'Sunrisers Hyderabad', '24/4', 'Hyderabad'), ('Mumbai Indians', 'Gujarat Titans', 'Gujarat Titans', '29/1', 'Mumbai'), ('Royal Challengers Bengaluru', 'Chennai Super Kings', 'Chennai Super Kings', '30/3', 'Chennai'), ('Chennai Super Kings', 'Kolkata Knight Riders', 'Chennai Super Kings', '31/2', 'Chennai'), ('Royal Challengers Bengaluru', 'Punjab Kings', 'Royal Challengers Bengaluru', '33/4', 'Bengaluru')]
+
+--- Entry #133 ---
+Question: first mi batter to be dismissed run out in 2025
+SQL: SELECT T3."player_name" FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id INNER JOIN Players AS T3 ON T2.player_out_id = T3.player_id WHERE T1.season = '2025' AND T2.batting_team = 'Mumbai Indians' AND T2.wicket_type = 'run out' ORDER BY T1.match_date, T2.inning, T2.over_number, T2.ball_number LIMIT 1
+Result: [SUCCESS]
+[('C Bosch',)]
+
+--- Entry #134 ---
+Question: list punjab's win in dharamsala since 2012
+SQL: SELECT
+  "match_date",
+  (
+    CASE
+      WHEN "team1" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+      ELSE "team1"
+    END
+  ) AS team1_name,
+  (
+    CASE
+      WHEN "team2" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+      ELSE "team2"
+    END
+  ) AS team2_name,
+  "result_type",
+  "result_margin"
+FROM "Matches"
+WHERE
+  "city" = 'Dharamsala' AND CAST(strftime('%Y', "match_date") AS INTEGER) >= 2012 AND (
+    CASE
+      WHEN "match_winner" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings'
+      ELSE "match_winner"
+    END
+  ) = 'Punjab Kings'
+ORDER BY
+  "match_date";
+Result: [SUCCESS]
+[('2012-05-17', 'Punjab Kings', 'Chennai Super Kings', 'wickets', 6), ('2013-05-16', 'Punjab Kings', 'Delhi Daredevils', 'runs', 7), ('2013-05-18', 'Punjab Kings', 'Mumbai Indians', 'runs', 50), ('2025-05-04', 'Punjab Kings', 'Lucknow Super Giants', 'runs', 37)]
+
+--- Entry #135 ---
+Question: list 50-plus scores from No.5 or lower for LSG
+SQL: WITH PlayerAppearances AS (
+  SELECT
+    "delivery_id",
+    "match_id",
+    "inning",
+    "striker_id" AS "player_id"
+  FROM "Deliveries"
+  UNION
+  SELECT
+    "delivery_id",
+    "match_id",
+    "inning",
+    "non_striker_id" AS "player_id"
+  FROM "Deliveries"
+), FirstAppearance AS (
+  SELECT
+    "player_id",
+    "match_id",
+    "inning",
+    MIN("delivery_id") AS first_delivery
+  FROM PlayerAppearances
+  GROUP BY
+    "player_id",
+    "match_id",
+    "inning"
+), BattingPositions AS (
+  SELECT
+    "player_id",
+    "match_id",
+    "inning",
+    ROW_NUMBER() OVER (PARTITION BY "match_id", "inning" ORDER BY first_delivery) AS position
+  FROM FirstAppearance
+), PlayerRuns AS (
+  SELECT
+    "striker_id",
+    "match_id",
+    "batting_team",
+    SUM("runs_scored") AS total_runs
+  FROM "Deliveries"
+  GROUP BY
+    "striker_id",
+    "match_id",
+    "batting_team"
+)
+SELECT
+  T4."player_name",
+  T3."total_runs",
+  T5."venue",
+  T5."match_date"
+FROM BattingPositions AS T1
+JOIN PlayerRuns AS T3
+  ON T1."player_id" = T3."striker_id" AND T1."match_id" = T3."match_id"
+JOIN "Players" AS T4
+  ON T1."player_id" = T4."player_id"
+JOIN "Matches" AS T5
+  ON T1."match_id" = T5."match_id"
+WHERE
+  T3."batting_team" = 'Lucknow Super Giants' AND T1."position" >= 5 AND T3."total_runs" >= 50
+ORDER BY
+  T3."total_runs" DESC;
+Result: [SUCCESS]
+[('MP Stoinis', 89, 'Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', '2023-05-16'), ('N Pooran', 75, 'Wankhede Stadium, Mumbai', '2024-05-17'), ('A Badoni', 74, 'Himachal Pradesh Cricket Association Stadium, Dharamsala', '2025-05-04'), ('MP Stoinis', 65, 'M Chinnaswamy Stadium, Bengaluru', '2023-04-10'), ('N Pooran', 64, 'Sawai Mansingh Stadium, Jaipur', '2024-03-24'), ('N Pooran', 62, 'M Chinnaswamy Stadium, Bengaluru', '2023-04-10'), ('N Pooran', 61, 'Arun Jaitley Stadium, Delhi', '2024-05-14'), ('A Badoni', 59, 'Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', '2023-05-03'), ('Arshad Khan', 58, 'Arun Jaitley Stadium, Delhi', '2024-05-14'), ('N Pooran', 58, 'Eden Gardens, Kolkata', '2023-05-20'), ('DJ Hooda', 55, 'Wankhede Stadium, Mumbai', '2022-03-28'), ('A Badoni', 55, 'Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', '2024-04-12'), ('A Badoni', 55, 'Rajiv Gandhi International Stadium, Uppal, Hyderabad', '2024-05-08'), ('A Badoni', 54, 'Wankhede Stadium, Mumbai', '2022-03-28'), ('DJ Hooda', 51, 'Dr DY Patil Sports Academy, Mumbai', '2022-04-04'), ('A Badoni', 50, 'Sawai Mansingh Stadium, Jaipur', '2025-04-19')]
+
+--- Entry #136 ---
+Question: 5 Most runs for LSG
+SQL: SELECT T3."player_name", SUM(T1."runs_scored") FROM Deliveries AS T1 INNER JOIN PlayerInMatch AS T2 ON T1."match_id" = T2."match_id" AND T1."striker_id" = T2."player_id" INNER JOIN Players AS T3 ON T2."player_id" = T3."player_id" WHERE T2."team_name" = 'Lucknow Super Giants' GROUP BY T3."player_name" ORDER BY SUM(T1."runs_scored") DESC LIMIT 5
+Result: [SUCCESS]
+[('KL Rahul', 1410), ('N Pooran', 1381), ('A Badoni', 963), ('MP Stoinis', 952), ('Q de Kock', 901)]
+
+--- Entry #137 ---
+Question: list all cricket stadiums to ever host an ipl match grouped by city
+SQL: SELECT "city", GROUP_CONCAT(DISTINCT "venue") FROM "Matches" GROUP BY "city" ORDER BY "city"
+Result: [SUCCESS]
+[(None, 'Sharjah Cricket Stadium,Dubai International Cricket Stadium'), ('Abu Dhabi', 'Sheikh Zayed Stadium,Zayed Cricket Stadium, Abu Dhabi'), ('Ahmedabad', 'Sardar Patel Stadium, Motera,Narendra Modi Stadium, Ahmedabad'), ('Bangalore', 'M Chinnaswamy Stadium'), ('Bengaluru', 'M.Chinnaswamy Stadium,M Chinnaswamy Stadium, Bengaluru'), ('Bloemfontein', 'OUTsurance Oval'), ('Cape Town', 'Newlands'), ('Centurion', 'SuperSport Park'), ('Chandigarh', 'Punjab Cricket Association Stadium, Mohali,Punjab Cricket Association IS Bindra Stadium, Mohali,Punjab Cricket Association IS Bindra Stadium,Punjab Cricket Association IS Bindra Stadium, Mohali, Chandigarh'), ('Chennai', 'MA Chidambaram Stadium, Chepauk,MA Chidambaram Stadium,MA Chidambaram Stadium, Chepauk, Chennai'), ('Cuttack', 'Barabati Stadium'), ('Delhi', 'Feroz Shah Kotla,Arun Jaitley Stadium,Arun Jaitley Stadium, Delhi'), ('Dharamsala', 'Himachal Pradesh Cricket Association Stadium,Himachal Pradesh Cricket Association Stadium, Dharamsala'), ('Dubai', 'Dubai International Cricket Stadium'), ('Durban', 'Kingsmead'), ('East London', 'Buffalo Park'), ('Guwahati', 'Barsapara Cricket Stadium, Guwahati'), ('Hyderabad', 'Rajiv Gandhi International Stadium, Uppal,Rajiv Gandhi International Stadium,Rajiv Gandhi International Stadium, Uppal, Hyderabad'), ('Indore', 'Holkar Cricket Stadium'), ('Jaipur', 'Sawai Mansingh Stadium,Sawai Mansingh Stadium, Jaipur'), ('Johannesburg', 'New Wanderers Stadium'), ('Kanpur', 'Green Park'), ('Kimberley', 'De Beers Diamond Oval'), ('Kochi', 'Nehru Stadium'), ('Kolkata', 'Eden Gardens,Eden Gardens, Kolkata'), ('Lucknow', 'Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow'), ('Mohali', 'Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur'), ('Mumbai', 'Wankhede Stadium,Dr DY Patil Sports Academy,Brabourne Stadium,Brabourne Stadium, Mumbai,Wankhede Stadium, Mumbai,Dr DY Patil Sports Academy, Mumbai'), ('Nagpur', 'Vidarbha Cricket Association Stadium, Jamtha'), ('Navi Mumbai', 'Dr DY Patil Sports Academy, Mumbai'), ('New Chandigarh', 'Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur,Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh'), ('Port Elizabeth', "St George's Park"), ('Pune', 'Subrata Roy Sahara Stadium,Maharashtra Cricket Association Stadium,Maharashtra Cricket Association Stadium, Pune'), ('Raipur', 'Shaheed Veer Narayan Singh International Stadium'), ('Rajkot', 'Saurashtra Cricket Association Stadium'), ('Ranchi', 'JSCA International Stadium Complex'), ('Sharjah', 'Sharjah Cricket Stadium'), ('Visakhapatnam', 'Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium,Dr. Y.S. Rajasekhara Reddy ACA-VDCA Cricket Stadium, Visakhapatnam')]
+
+--- Entry #138 ---
+Question: give the highest match aggregate in dharamsala city
+SQL: SELECT T1.match_id, SUM(T2.runs_scored + T2.extra_runs) FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id WHERE T1.city = 'Dharamsala' GROUP BY T1.match_id ORDER BY SUM(T2.runs_scored + T2.extra_runs) DESC LIMIT 1
+Result: [SUCCESS]
+[(1473491, 435)]
+
+--- Entry #139 ---
+Question: stoinis batting stats in last over of the inning.give runs, balls, dismissals, strike rate, fours and sixes
+SQL: SELECT T2."player_name", SUM(T1."runs_scored") AS total_runs, COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS balls_faced, COUNT(CASE WHEN T1."player_out_id" = T1."striker_id" THEN 1 END) AS dismissals, CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN T1."wides" = 0 THEN 1 END) AS strike_rate, SUM(CASE WHEN T1."runs_scored" = 4 THEN 1 ELSE 0 END) AS fours, SUM(CASE WHEN T1."runs_scored" = 6 THEN 1 ELSE 0 END) AS sixes FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" WHERE T2."player_name" = 'MP Stoinis' AND T1."over_number" = 19
+Result: [SUCCESS]
+[('MP Stoinis', 223, 75, 7, 297.3333333333333, 18, 20)]
+
+--- Entry #140 ---
+Question: most 50+ consecutive scores by an opener across all editions.give the player, his streak, the scores in that streak and the teams and the year.list all the instances of highest streak
+SQL: WITH OpenerInnings AS (
+  SELECT DISTINCT
+    "match_id",
+    "inning",
+    "striker_id" AS "player_id"
+  FROM "Deliveries"
+  WHERE
+    "over_number" = 0
+  UNION
+  SELECT DISTINCT
+    "match_id",
+    "inning",
+    "non_striker_id" AS "player_id"
+  FROM "Deliveries"
+  WHERE
+    "over_number" = 0
+), OpenerScores AS (
+  SELECT
+    T1."player_id",
+    T2."match_id",
+    T3."match_date",
+    T3."season",
+    T2."batting_team",
+    SUM(T2."runs_scored") AS "runs"
+  FROM OpenerInnings AS T1
+  INNER JOIN "Deliveries" AS T2
+    ON T1."player_id" = T2."striker_id"
+    AND T1."match_id" = T2."match_id"
+    AND T1."inning" = T2."inning"
+  INNER JOIN "Matches" AS T3
+    ON T1."match_id" = T3."match_id"
+  GROUP BY
+    T1."player_id",
+    T2."match_id"
+), RankedScores AS (
+  SELECT
+    *,
+    ROW_NUMBER() OVER (PARTITION BY "player_id" ORDER BY "match_date") AS inning_rank
+  FROM OpenerScores
+), StreakIdentifier AS (
+  SELECT
+    *,
+    inning_rank - ROW_NUMBER() OVER (PARTITION BY "player_id" ORDER BY "match_date") AS streak_group
+  FROM RankedScores
+  WHERE
+    "runs" >= 50
+), StreakDetails AS (
+  SELECT
+    "player_id",
+    COUNT(*) AS "streak_count",
+    GROUP_CONCAT("runs", ', ') AS "scores",
+    GROUP_CONCAT(DISTINCT "batting_team") AS "teams",
+    GROUP_CONCAT(DISTINCT SUBSTR("season", 1, 4)) AS "years"
+  FROM StreakIdentifier
+  GROUP BY
+    "player_id",
+    "streak_group"
+), MaxStreak AS (
+  SELECT
+    MAX("streak_count") AS max_streak
+  FROM StreakDetails
+)
+SELECT
+  T4."player_name",
+  T1."streak_count",
+  T1."scores",
+  T1."teams",
+  T1."years"
+FROM StreakDetails AS T1
+INNER JOIN MaxStreak AS T2
+  ON T1."streak_count" = T2.max_streak
+INNER JOIN "Players" AS T4
+  ON T1."player_id" = T4."player_id"
+ORDER BY
+  T4."player_name";
+Result: [SUCCESS]
+[('DA Warner', 5, '70, 51, 50, 67, 57', 'Sunrisers Hyderabad', '2019'), ('Ishan Kishan', 5, '72, 50, 84, 81, 54', 'Mumbai Indians', '2020,2021,2022'), ('JC Buttler', 5, '67, 51, 82, 95, 94', 'Rajasthan Royals', '2018'), ('V Sehwag', 5, '57, 87, 73, 63, 73', 'Delhi Daredevils', '2012')]
+
+--- Entry #141 ---
+Question: list murali vijay's top 5 highest scores.mention the runs, balls, teams of that match
+SQL: SELECT SUM(T1.runs_scored) AS total_runs, COUNT(CASE WHEN T1.wides = 0 THEN 1 END) AS balls_faced, T3.team1, T3.team2 FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.striker_id = T2.player_id INNER JOIN Matches AS T3 ON T1.match_id = T3.match_id WHERE T2.player_name = 'M Vijay' GROUP BY T1.match_id, T3.team1, T3.team2 ORDER BY total_runs DESC LIMIT 5
+Result: [SUCCESS]
+[(127, 56, 'Chennai Super Kings', 'Rajasthan Royals'), (113, 58, 'Delhi Daredevils', 'Chennai Super Kings'), (95, 52, 'Chennai Super Kings', 'Royal Challengers Bangalore'), (89, 57, 'Kings XI Punjab', 'Royal Challengers Bangalore'), (78, 39, 'Chennai Super Kings', 'Royal Challengers Bangalore')]
+
+--- Entry #142 ---
+Question: the 2 highest partnerships for the sixth wicket or lower for RR in the IPL. list the partnership runs and the batters involved
+SQL: WITH WicketInfo AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id",
+    "non_striker_id",
+    "runs_scored",
+    "extra_runs",
+    COALESCE(SUM(CASE WHEN "player_out_id" IS NOT NULL THEN 1 ELSE 0 END) OVER (
+      PARTITION BY "match_id", "inning"
+      ORDER BY "over_number", "ball_number"
+      ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ), 0) AS "partnership_group"
+  FROM "Deliveries"
+  WHERE "batting_team" = 'Rajasthan Royals'
+),
+PartnershipRuns AS (
+  SELECT
+    "match_id",
+    "inning",
+    "partnership_group",
+    SUM("runs_scored" + "extra_runs") AS "partnership_runs"
+  FROM WicketInfo
+  WHERE "partnership_group" >= 5
+  GROUP BY
+    "match_id",
+    "inning",
+    "partnership_group"
+),
+PartnershipPlayers AS (
+  SELECT
+    "match_id",
+    "inning",
+    "partnership_group",
+    "player_id"
+  FROM (
+    SELECT DISTINCT "match_id", "inning", "partnership_group", "striker_id" AS "player_id" FROM WicketInfo
+    UNION
+    SELECT DISTINCT "match_id", "inning", "partnership_group", "non_striker_id" AS "player_id" FROM WicketInfo
+  )
+  WHERE "partnership_group" >= 5
+),
+PartnershipBatters AS (
+  SELECT
+    T1."match_id",
+    T1."inning",
+    T1."partnership_group",
+    GROUP_CONCAT(T2."player_name", ', ') AS "batters"
+  FROM PartnershipPlayers AS T1
+  JOIN "Players" AS T2 ON T1."player_id" = T2."player_id"
+  GROUP BY
+    T1."match_id",
+    T1."inning",
+    T1."partnership_group"
+)
+SELECT
+  T1."partnership_runs",
+  T2."batters"
+FROM PartnershipRuns AS T1
+JOIN PartnershipBatters AS T2
+  ON T1."match_id" = T2."match_id"
+  AND T1."inning" = T2."inning"
+  AND T1."partnership_group" = T2."partnership_group"
+ORDER BY
+  T1."partnership_runs" DESC
+LIMIT 2;
+Result: [SUCCESS]
+[(92, 'R Parag, SO Hetmyer'), (85, 'SPD Smith, JP Faulkner')]
+
+--- Entry #143 ---
+Question: give all instances of a batter hitting 5 sixes in an over
+SQL: SELECT T2."player_name", T3."player_name", T4."venue", T4."match_date" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN Players AS T3 ON T1."bowler_id" = T3."player_id" INNER JOIN Matches AS T4 ON T1."match_id" = T4."match_id" WHERE T1."runs_scored" = 6 GROUP BY T1."match_id", T1."inning", T1."over_number", T1."striker_id" HAVING count(*) = 5
+Result: [SUCCESS]
+[('CH Gayle', 'R Sharma', 'M Chinnaswamy Stadium', '2012-04-17'), ('R Tewatia', 'SS Cottrell', 'Sharjah Cricket Stadium', '2020-09-27'), ('RA Jadeja', 'HV Patel', 'Wankhede Stadium, Mumbai', '2021-04-25'), ('RK Singh', 'Yash Dayal', 'Narendra Modi Stadium, Ahmedabad', '2023-04-09'), ('R Parag', 'MM Ali', 'Eden Gardens, Kolkata', '2025-05-04')]
+
+--- Entry #144 ---
+Question: list all instances of a player hitting 50-plus sixes against a team in IPL
+SQL: SELECT T2."player_name", CASE WHEN T1."bowling_team" IN ('Delhi Daredevils', 'Delhi Capitals') THEN 'Delhi Capitals' WHEN T1."bowling_team" IN ('Kings XI Punjab', 'Punjab Kings') THEN 'Punjab Kings' WHEN T1."bowling_team" IN ('Deccan Chargers', 'Sunrisers Hyderabad') THEN 'Sunrisers Hyderabad' WHEN T1."bowling_team" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants') THEN 'Rising Pune Supergiant' WHEN T1."bowling_team" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru' ELSE T1."bowling_team" END AS "opponent_team", COUNT(T1."delivery_id") AS "total_sixes" FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" WHERE T1."runs_scored" = 6 GROUP BY T2."player_name", "opponent_team" HAVING COUNT(T1."delivery_id") >= 50 ORDER BY "total_sixes" DESC
+Result: [SUCCESS]
+[('CH Gayle', 'Punjab Kings', 61), ('CH Gayle', 'Kolkata Knight Riders', 54), ('MS Dhoni', 'Royal Challengers Bengaluru', 50), ('RG Sharma', 'Delhi Capitals', 50)]
+
+--- Entry #145 ---
+Question: dhoni's record in bengaluru.give runs made balls played average strike rate
+SQL: SELECT SUM(T1."runs_scored"), COUNT(CASE WHEN T1."wides" = 0 THEN 1 END), CAST(SUM(T1."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN T1."wides" = 0 THEN 1 END), CAST(SUM(T1."runs_scored") AS REAL) / COUNT(CASE WHEN T1."player_out_id" = T2."player_id" AND T1."wicket_type" NOT IN ('retired hurt', 'obstructing the field') THEN 1 END) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."striker_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T2."player_name" = 'MS Dhoni' AND T3."city" = 'Bangalore'
+Result: [SUCCESS]
+[(309, 174, 177.58620689655172, 61.8)]
+
+--- Entry #146 ---
+Question: Highest partnerships for CSK vs RCB (any wicket)
+SQL: WITH MatchIDs AS (
+  SELECT
+    "match_id"
+  FROM "Matches"
+  WHERE
+    (
+      CASE "team1"
+        WHEN 'Royal Challengers Bangalore' THEN 'Royal Challengers Bengaluru'
+        ELSE "team1"
+      END = 'Royal Challengers Bengaluru' AND "team2" = 'Chennai Super Kings'
+    ) OR (
+      "team1" = 'Chennai Super Kings' AND CASE "team2"
+        WHEN 'Royal Challengers Bangalore' THEN 'Royal Challengers Bengaluru'
+        ELSE "team2"
+      END = 'Royal Challengers Bengaluru'
+    )
+), PartnershipPeriods AS (
+  SELECT
+    "match_id",
+    "inning",
+    "over_number",
+    "ball_number",
+    "striker_id",
+    "non_striker_id",
+    "runs_scored",
+    "extra_runs",
+    SUM(CASE WHEN "player_out_id" IS NOT NULL THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS "partnership_group"
+  FROM "Deliveries"
+  WHERE
+    "match_id" IN (
+      SELECT
+        "match_id"
+      FROM MatchIDs
+    )
+), PartnershipDetails AS (
+  SELECT
+    "partnership_group",
+    "match_id",
+    CASE WHEN "striker_id" < "non_striker_id" THEN "striker_id" ELSE "non_striker_id" END AS "p1_id",
+    CASE WHEN "striker_id" < "non_striker_id" THEN "non_striker_id" ELSE "striker_id" END AS "p2_id",
+    SUM("runs_scored" + "extra_runs") AS "runs"
+  FROM PartnershipPeriods
+  GROUP BY
+    "match_id",
+    "inning",
+    "partnership_group",
+    "p1_id",
+    "p2_id"
+)
+SELECT
+  T3."player_name",
+  T4."player_name",
+  T2."runs"
+FROM PartnershipDetails AS T2
+JOIN "Players" AS T3
+  ON T2."p1_id" = T3."player_id"
+JOIN "Players" AS T4
+  ON T2."p2_id" = T4."player_id"
+ORDER BY
+  T2."runs" DESC
+LIMIT 1;
+Result: [SUCCESS]
+[('RV Uthappa', 'S Dube', 165)]
+
+--- Entry #147 ---
+Question: most runs scored in last 2 overs of an ipl inning.give the teams and the year
+SQL: SELECT T2."season", T1."batting_team", SUM(T1."runs_scored" + T1."extra_runs") AS total_runs FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" WHERE T1."over_number" >= 18 GROUP BY T1."match_id", T1."inning" ORDER BY total_runs DESC LIMIT 1
+Result: [SUCCESS]
+[('2025', 'Royal Challengers Bengaluru', 54)]
+
+--- Entry #148 ---
+Question: The 4 most expensive over for CSK in IPL
+SQL: SELECT SUM(T1.runs_scored + T1.extra_runs) AS "total_runs", T2.venue, T2.match_date, T1.over_number FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T1.bowling_team = 'Chennai Super Kings' GROUP BY T1.match_id, T1.over_number ORDER BY "total_runs" DESC LIMIT 4
+Result: [SUCCESS]
+[(33, 'M Chinnaswamy Stadium, Bengaluru', '2025-05-03', 18), (30, 'Sharjah Cricket Stadium', '2020-09-22', 19), (30, 'Wankhede Stadium, Mumbai', '2021-04-21', 15), (29, 'Wankhede Stadium', '2019-04-03', 19)]
+
+--- Entry #149 ---
+Question: most runs conceded by a CSK bowler in an inning in IPL.
+SQL: SELECT T2."player_name", SUM(T1."runs_scored" + T1."wides" + T1."noballs") FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" WHERE T1."bowling_team" = 'Chennai Super Kings' GROUP BY T1."match_id", T1."inning", T1."bowler_id" ORDER BY SUM(T1."runs_scored" + T1."wides" + T1."noballs") DESC LIMIT 1
+Result: [SUCCESS]
+[('KK Ahmed', 65)]
+
+--- Entry #150 ---
+Question: 4 Fastest fifty in IPL history (by balls faced). give the player team and the year
+SQL: WITH PlayerInnings AS (SELECT "match_id", "striker_id", "batting_team", SUM("runs_scored") OVER (PARTITION BY "match_id", "striker_id" ORDER BY "inning", "over_number", "ball_number") AS "cumulative_runs", SUM(CASE WHEN "wides" = 0 THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id", "striker_id" ORDER BY "inning", "over_number", "ball_number") AS "balls_faced" FROM "Deliveries"), FiftyData AS (SELECT "match_id", "striker_id", "batting_team", MIN("balls_faced") AS "balls_to_reach_50" FROM PlayerInnings WHERE "cumulative_runs" >= 50 GROUP BY "match_id", "striker_id") SELECT T3."player_name", T2."batting_team", T4."season", T2."balls_to_reach_50" FROM FiftyData AS T2 INNER JOIN "Players" AS T3 ON T2."striker_id" = T3."player_id" INNER JOIN "Matches" AS T4 ON T2."match_id" = T4."match_id" ORDER BY T2."balls_to_reach_50" ASC LIMIT 4
+Result: [SUCCESS]
+[('YBK Jaiswal', 'Rajasthan Royals', '2023', 13), ('KL Rahul', 'Kings XI Punjab', '2018', 14), ('PJ Cummins', 'Kolkata Knight Riders', '2022', 14), ('R Shepherd', 'Royal Challengers Bengaluru', '2025', 14)]
+
+--- Entry #151 ---
+Question: player with Most runs against an opponent in IPL
+SQL: SELECT T2.player_name, T1.bowling_team, SUM(T1.runs_scored) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.striker_id = T2.player_id GROUP BY T2.player_name, T1.bowling_team ORDER BY SUM(T1.runs_scored) DESC LIMIT 1
+Result: [SUCCESS]
+[('V Kohli', 'Chennai Super Kings', 1146)]
+
+--- Entry #152 ---
+Question: all instances for the Most consecutive 50-plus scores for RCB in the IPL
+SQL: WITH PlayerMatchScores AS (
+  SELECT
+    T1.striker_id,
+    T2.match_date,
+    SUM(T1.runs_scored) AS runs
+  FROM Deliveries AS T1
+  INNER JOIN Matches AS T2
+    ON T1.match_id = T2.match_id
+  WHERE
+    (CASE
+      WHEN T1.batting_team IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru') THEN 'Royal Challengers Bengaluru'
+      ELSE T1.batting_team
+    END) = 'Royal Challengers Bengaluru'
+  GROUP BY
+    T1.striker_id,
+    T2.match_date
+), FiftyPlusFlag AS (
+  SELECT
+    striker_id,
+    match_date,
+    (
+      CASE
+        WHEN runs >= 50
+        THEN 1
+        ELSE 0
+      END
+    ) AS is_fifty_plus,
+    ROW_NUMBER() OVER (PARTITION BY striker_id ORDER BY match_date) AS match_num
+  FROM PlayerMatchScores
+), StreakGroup AS (
+  SELECT
+    striker_id,
+    (
+      match_num - ROW_NUMBER() OVER (PARTITION BY striker_id ORDER BY match_date)
+    ) AS streak_id
+  FROM FiftyPlusFlag
+  WHERE
+    is_fifty_plus = 1
+)
+SELECT
+  T2.player_name,
+  COUNT(T1.striker_id) AS consecutive_fifties
+FROM StreakGroup AS T1
+INNER JOIN Players AS T2
+  ON T1.striker_id = T2.player_id
+GROUP BY
+  T2.player_name,
+  T1.streak_id
+ORDER BY
+  consecutive_fifties DESC
+LIMIT 1;
+Result: [SUCCESS]
+[('V Kohli', 4)]
+
+--- Entry #153 ---
+Question: Most 50+ scores against CSK in IPL
+SQL: SELECT T2."player_name", COUNT(T1."striker_id") FROM (SELECT "striker_id" FROM "Deliveries" WHERE "bowling_team" = 'Chennai Super Kings' GROUP BY "match_id", "striker_id" HAVING SUM("runs_scored") >= 50) AS T1 INNER JOIN "Players" AS T2 ON T1."striker_id" = T2."player_id" GROUP BY T2."player_name" ORDER BY COUNT(T1."striker_id") DESC LIMIT 5
+Result: [SUCCESS]
+[('V Kohli', 10), ('S Dhawan', 9), ('RG Sharma', 9), ('DA Warner', 9), ('KL Rahul', 6)]
+
+--- Entry #154 ---
+Question: Least dot balls played by a team in an IPL innings that played full 20 overs
+SQL: SELECT
+  "batting_team",
+  COUNT(CASE WHEN "runs_scored" = 0 AND "wides" = 0 THEN 1 END) AS dot_balls
+FROM "Deliveries"
+GROUP BY
+  "match_id",
+  "batting_team"
+HAVING
+  MAX("over_number") = 19
+ORDER BY
+  dot_balls
+LIMIT 1;
+Result: [SUCCESS]
+[('Sunrisers Hyderabad', 22)]
+
+--- Entry #155 ---
+Question: Least dot balls played by a team in an IPL innings that played full 20 overs.list the least 6 instances
+SQL: SELECT
+  T1.batting_team,
+  T2.season,
+  SUM(CASE WHEN T1.runs_scored = 0 AND T1.wides = 0 THEN 1 ELSE 0 END) AS dot_balls
+FROM Deliveries AS T1
+INNER JOIN Matches AS T2
+  ON T1.match_id = T2.match_id
+GROUP BY
+  T1.match_id,
+  T1.inning
+HAVING
+  MAX(T1.over_number) = 19
+ORDER BY
+  dot_balls ASC
+LIMIT 6;
+Result: [SUCCESS]
+[('Sunrisers Hyderabad', '2024', 22), ('Gujarat Titans', '2025', 22), ('Delhi Capitals', '2020/21', 23), ('Royal Challengers Bengaluru', '2024', 23), ('Sunrisers Hyderabad', '2017', 24), ('Gujarat Titans', '2024', 24)]
+
+--- Entry #156 ---
+Question: most sixes conceded by a bowler in an inning
+SQL: SELECT T2."player_name", COUNT(T1."delivery_id") FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" WHERE T1."runs_scored" = 6 GROUP BY T1."match_id", T1."inning", T2."player_name" ORDER BY COUNT(T1."delivery_id") DESC LIMIT 1;
+Result: [SUCCESS]
+[('Yash Dayal', 8)]
+
+--- Entry #157 ---
+Question: most runs scored by gt after 10 overs in an inning
+SQL: SELECT SUM("runs_scored" + "extra_runs") FROM "Deliveries" WHERE "batting_team" = 'Gujarat Titans' AND "over_number" >= 10 GROUP BY "match_id", "inning" ORDER BY SUM("runs_scored" + "extra_runs") DESC LIMIT 1
+Result: [SUCCESS]
+[(142,)]
+
+--- Entry #158 ---
+Question: 4 fasteest to reach 4000 runs in terms of balls played
+SQL: WITH CumulativeData AS (
+  SELECT
+    T1."striker_id",
+    SUM(T1."runs_scored") OVER (PARTITION BY T1."striker_id" ORDER BY T2."match_date", T1."delivery_id") AS "cumulative_runs",
+    SUM(CASE WHEN T1."wides" = 0 THEN 1 ELSE 0 END) OVER (PARTITION BY T1."striker_id" ORDER BY T2."match_date", T1."delivery_id") AS "cumulative_balls"
+  FROM Deliveries AS T1
+  INNER JOIN Matches AS T2
+    ON T1."match_id" = T2."match_id"
+), MilestoneReached AS (
+  SELECT
+    "striker_id",
+    MIN("cumulative_balls") AS "balls_to_4000"
+  FROM CumulativeData
+  WHERE
+    "cumulative_runs" >= 4000
+  GROUP BY
+    "striker_id"
+)
+SELECT
+  T3."player_name",
+  T4."balls_to_4000"
+FROM MilestoneReached AS T4
+INNER JOIN Players AS T3
+  ON T4."striker_id" = T3."player_id"
+ORDER BY
+  T4."balls_to_4000"
+LIMIT 4;
+Result: [SUCCESS]
+[('CH Gayle', 2647), ('AB de Villiers', 2654), ('JC Buttler', 2678), ('SA Yadav', 2715)]
+
+--- Entry #159 ---
+Question: average 1st innings score at ahmedabad
+SQL: SELECT AVG(T.total_runs) FROM (SELECT SUM(T1."runs_scored" + T1."extra_runs") AS total_runs FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T1.inning = 1 AND T2.venue LIKE '%Ahmedabad%' GROUP BY T1.match_id) AS T
+Result: [SUCCESS]
+[(186.63636363636363,)]
+
+--- Entry #160 ---
+Question: the 4 Biggest win margins for MI in IPL (by runs)
+SQL: SELECT "result_margin" , "team1" , "team2" , "season" FROM "Matches" WHERE "match_winner" = 'Mumbai Indians' AND "result_type" = 'runs' ORDER BY "result_margin" DESC LIMIT 4
+Result: [SUCCESS]
+[(146, 'Delhi Daredevils', 'Mumbai Indians', '2017'), (102, 'Mumbai Indians', 'Kolkata Knight Riders', '2018'), (100, 'Mumbai Indians', 'Rajasthan Royals', '2025'), (98, 'Delhi Daredevils', 'Mumbai Indians', '2009/10')]
+
+--- Entry #161 ---
+Question: the 4 Biggest defeat margins for RR in IPL (by runs)
+SQL: SELECT CASE WHEN "team1" = 'Rajasthan Royals' THEN "team2" ELSE "team1" END AS "opponent", "result_margin", "season" FROM "Matches" WHERE ("team1" = 'Rajasthan Royals' OR "team2" = 'Rajasthan Royals') AND "match_winner" != 'Rajasthan Royals' AND "result_type" = 'runs' ORDER BY "result_margin" DESC LIMIT 4
+Result: [SUCCESS]
+[('Royal Challengers Bangalore', 112, '2023'), ('Mumbai Indians', 100, '2025'), ('Kolkata Knight Riders', 86, '2021'), ('Royal Challengers Bangalore', 75, '2009')]
+
+--- Entry #162 ---
+Question: list all instances of a team losing 5 wickets or more inside powerplay in ipl 2025
+SQL: SELECT T2."venue", T1."batting_team", COUNT(T1."wicket_type") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" WHERE T2."season" = '2025' AND T1."over_number" <= 5 AND T1."wicket_type" IS NOT NULL GROUP BY T1."match_id", T1."batting_team" HAVING COUNT(T1."wicket_type") >= 5
+Result: [SUCCESS]
+[('Sawai Mansingh Stadium, Jaipur', 'Rajasthan Royals', 5), ('Eden Gardens, Kolkata', 'Chennai Super Kings', 5)]
+
+--- Entry #163 ---
+Question: list all instances of 4 or more batters scoring 40+ runs in an inning.give the teams in the match and the year
+SQL: WITH BatterScores AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id"
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "inning",
+    "striker_id"
+  HAVING
+    SUM("runs_scored") >= 40
+), InningsWith40Plus AS (
+  SELECT
+    "match_id",
+    "inning"
+  FROM BatterScores
+  GROUP BY
+    "match_id",
+    "inning"
+  HAVING
+    COUNT("striker_id") >= 4
+)
+SELECT
+  T2."season",
+  CASE
+    WHEN T2."team1" IN ('Delhi Daredevils', 'Delhi Capitals')
+    THEN 'Delhi Capitals'
+    WHEN T2."team1" IN ('Kings XI Punjab', 'Punjab Kings')
+    THEN 'Punjab Kings'
+    WHEN T2."team1" IN ('Deccan Chargers', 'Sunrisers Hyderabad')
+    THEN 'Sunrisers Hyderabad'
+    WHEN T2."team1" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants')
+    THEN 'Rising Pune Supergiant'
+    WHEN T2."team1" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru')
+    THEN 'Royal Challengers Bengaluru'
+    ELSE T2."team1"
+  END,
+  CASE
+    WHEN T2."team2" IN ('Delhi Daredevils', 'Delhi Capitals')
+    THEN 'Delhi Capitals'
+    WHEN T2."team2" IN ('Kings XI Punjab', 'Punjab Kings')
+    THEN 'Punjab Kings'
+    WHEN T2."team2" IN ('Deccan Chargers', 'Sunrisers Hyderabad')
+    THEN 'Sunrisers Hyderabad'
+    WHEN T2."team2" IN ('Pune Warriors', 'Rising Pune Supergiant', 'Rising Pune Supergiants')
+    THEN 'Rising Pune Supergiant'
+    WHEN T2."team2" IN ('Royal Challengers Bangalore', 'Royal Challengers Bengaluru')
+    THEN 'Royal Challengers Bengaluru'
+    ELSE T2."team2"
+  END
+FROM InningsWith40Plus AS T1
+INNER JOIN "Matches" AS T2
+  ON T1."match_id" = T2."match_id";
+Result: [SUCCESS]
+[('2011', 'Rajasthan Royals', 'Chennai Super Kings'), ('2023', 'Lucknow Super Giants', 'Punjab Kings'), ('2024', 'Sunrisers Hyderabad', 'Mumbai Indians'), ('2025', 'Mumbai Indians', 'Rajasthan Royals')]
+
+--- Entry #164 ---
+Question: give batting stats of Hardik Pandya vs RR.give innings runs average strike rate
+SQL: SELECT COUNT(DISTINCT T1.match_id), SUM(T1.runs_scored), CAST(SUM(T1.runs_scored) AS REAL) * 100 / COUNT(CASE WHEN T1.wides = 0 THEN 1 ELSE NULL END), CAST(SUM(T1.runs_scored) AS REAL) / COUNT(CASE WHEN T1.player_out_id = T2.player_id THEN 1 ELSE NULL END) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.striker_id = T2.player_id WHERE T2.player_name = 'HH Pandya' AND T1.bowling_team = 'Rajasthan Royals'
+Result: [SUCCESS]
+[(15, 506, 173.2876712328767, 72.28571428571429)]
+
+--- Entry #165 ---
+Question: five highest totals at jaipur
+SQL: SELECT T2."batting_team", SUM(T2."runs_scored" + T2."extra_runs") FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1."match_id" = T2."match_id" WHERE T1."city" = 'Jaipur' GROUP BY T1."match_id", T2."batting_team" ORDER BY SUM(T2."runs_scored" + T2."extra_runs") DESC LIMIT 5
+Result: [SUCCESS]
+[('Punjab Kings', 219), ('Sunrisers Hyderabad', 217), ('Mumbai Indians', 217), ('Rajasthan Royals', 214), ('Rajasthan Royals', 212)]
+
+--- Entry #166 ---
+Question: 5 Most consecutive scores of 25 or more in IPL.give players and streak
+SQL: WITH PlayerMatchRuns AS (
+  SELECT
+    "striker_id" AS "player_id",
+    "match_id",
+    SUM("runs_scored") AS "runs"
+  FROM "Deliveries"
+  GROUP BY
+    "striker_id",
+    "match_id"
+), ScoresWithDate AS (
+  SELECT
+    T1."player_id",
+    T2."match_date",
+    CASE
+      WHEN T1."runs" >= 25 THEN 1
+      ELSE 0
+    END AS "is_25plus"
+  FROM PlayerMatchRuns AS T1
+  JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+), StreakIdentifier AS (
+  SELECT
+    "player_id",
+    "is_25plus",
+    (
+      ROW_NUMBER() OVER (PARTITION BY "player_id" ORDER BY "match_date") - ROW_NUMBER() OVER (PARTITION BY "player_id", "is_25plus" ORDER BY "match_date")
+    ) AS "streak_group"
+  FROM ScoresWithDate
+), StreakLengths AS (
+  SELECT
+    "player_id",
+    COUNT(*) AS "streak"
+  FROM StreakIdentifier
+  WHERE
+    "is_25plus" = 1
+  GROUP BY
+    "player_id",
+    "streak_group"
+)
+SELECT
+  T2."player_name",
+  T1."streak"
+FROM StreakLengths AS T1
+JOIN "Players" AS T2
+  ON T1."player_id" = T2."player_id"
+ORDER BY
+  T1."streak" DESC
+LIMIT 5;
+Result: [SUCCESS]
+[('SA Yadav', 16), ('RV Uthappa', 10), ('SPD Smith', 9), ('V Kohli', 9), ('B Sai Sudharsan', 9)]
+
+--- Entry #167 ---
+Question: most wins against csk in chennai.give the team and wins
+SQL: SELECT "match_winner", COUNT(*) FROM "Matches" WHERE "city" = 'Chennai' AND ("team1" = 'Chennai Super Kings' OR "team2" = 'Chennai Super Kings') AND "match_winner" != 'Chennai Super Kings' GROUP BY "match_winner" ORDER BY COUNT(*) DESC LIMIT 1
+Result: [SUCCESS]
+[('Mumbai Indians', 5)]
+
+--- Entry #168 ---
+Question: list iyer's score in games that were not held in punjab in 2025
+SQL: SELECT T3."player_name", T2."venue", SUM(T1."runs_scored") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."striker_id" = T3."player_id" WHERE T3."player_name" LIKE '%Iyer%' AND STRFTIME('%Y', T2."match_date") = '2025' AND T2."city" NOT IN ('Chandigarh', 'Mohali', 'Dharamsala') GROUP BY T1."match_id", T3."player_name"
+Result: [SUCCESS]
+[('VR Iyer', 'Eden Gardens, Kolkata', 6), ('SS Iyer', 'Narendra Modi Stadium, Ahmedabad', 97), ('VR Iyer', 'Wankhede Stadium, Mumbai', 3), ('SS Iyer', 'Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow', 52), ('VR Iyer', 'Eden Gardens, Kolkata', 60), ('VR Iyer', 'Eden Gardens, Kolkata', 45), ('SS Iyer', 'Rajiv Gandhi International Stadium, Uppal, Hyderabad', 82), ('SS Iyer', 'M Chinnaswamy Stadium, Bengaluru', 7), ('VR Iyer', 'Eden Gardens, Kolkata', 14), ('SS Iyer', 'Eden Gardens, Kolkata', 25), ('VR Iyer', 'Arun Jaitley Stadium, Delhi', 7), ('SS Iyer', 'MA Chidambaram Stadium, Chepauk, Chennai', 72), ('SS Iyer', 'Sawai Mansingh Stadium, Jaipur', 30), ('SS Iyer', 'Sawai Mansingh Stadium, Jaipur', 26), ('SS Iyer', 'Maharaja Yadavindra Singh International Cricket Stadium, Mullanpur', 2), ('SS Iyer', 'Narendra Modi Stadium, Ahmedabad', 87), ('SS Iyer', 'Narendra Modi Stadium, Ahmedabad', 1), ('SS Iyer', 'Sawai Mansingh Stadium, Jaipur', 53)]
+
+--- Entry #169 ---
+Question: 5 bowlers with Most wickets in the powerplay in IPL 2025
+SQL: SELECT T2.player_name, COUNT(T1.delivery_id) FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1.bowler_id = T2.player_id INNER JOIN Matches AS T3 ON T1.match_id = T3.match_id WHERE T3.season = '2025' AND T1.over_number <= 5 AND T1.wicket_type IS NOT NULL AND T1.wicket_type NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') GROUP BY T2.player_name ORDER BY COUNT(T1.delivery_id) DESC LIMIT 5
+Result: [SUCCESS]
+[('TA Boult', 10), ('KK Ahmed', 10), ('JR Hazlewood', 10), ('Mohammed Siraj', 9), ('DL Chahar', 8)]
+
+--- Entry #170 ---
+Question: the 2 highest first innings team totals in IPL when team got bowled out
+SQL: SELECT "batting_team", SUM("runs_scored" + "extra_runs") AS total_runs FROM "Deliveries" WHERE "inning" = 1 GROUP BY "match_id" HAVING COUNT("player_out_id") = 10 ORDER BY total_runs DESC LIMIT 2
+Result: [SUCCESS]
+[('Chennai Super Kings', 190), ('Rajasthan Royals', 185)]
+
+--- Entry #171 ---
+Question: 4 bowlers with Most 4-plus wicket hauls in the IPL
+SQL: WITH HaulCounts AS (
+  SELECT
+    "bowler_id",
+    COUNT(*) AS num_hauls
+  FROM (
+    SELECT
+      "bowler_id"
+    FROM "Deliveries"
+    WHERE
+      "wicket_type" IS NOT NULL
+      AND "wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+    GROUP BY
+      "bowler_id",
+      "match_id"
+    HAVING
+      COUNT(*) >= 4
+  )
+  GROUP BY
+    "bowler_id"
+), RankedHauls AS (
+  SELECT
+    "bowler_id",
+    "num_hauls",
+    DENSE_RANK() OVER (
+      ORDER BY
+        "num_hauls" DESC
+    ) AS rnk
+  FROM HaulCounts
+)
+SELECT
+  T2."player_name",
+  T1."num_hauls"
+FROM RankedHauls AS T1
+INNER JOIN "Players" AS T2
+  ON T1."bowler_id" = T2."player_id"
+WHERE
+  T1.rnk <= 4
+ORDER BY
+  T1."num_hauls" DESC;
+Result: [SUCCESS]
+[('YS Chahal', 9), ('SP Narine', 8), ('SL Malinga', 7), ('K Rabada', 7), ('JJ Bumrah', 6)]
+
+--- Entry #172 ---
+Question: give all instances of Four wickets in an over for a bowler in IPL.give the bowler, team, city and year
+SQL: SELECT T3."player_name", T1."bowling_team", T2."city", T2."season" FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."bowler_id" = T3."player_id" WHERE T1."wicket_type" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') GROUP BY T1."match_id", T1."inning", T1."over_number", T1."bowler_id" HAVING count(*) = 4
+Result: [SUCCESS]
+[('A Mishra', 'Sunrisers Hyderabad', 'Pune', '2013'), ('YS Chahal', 'Rajasthan Royals', 'Mumbai', '2022'), ('AD Russell', 'Kolkata Knight Riders', 'Navi Mumbai', '2022'), ('YS Chahal', 'Punjab Kings', 'Chennai', '2025')]
+
+--- Entry #173 ---
+Question: 3 bowlers with Multiple hat-tricks in IPL
+SQL: WITH WicketDeliveries AS (
+  SELECT
+    "match_id",
+    "bowler_id",
+    "inning",
+    "over_number",
+    "ball_number",
+    CASE
+      WHEN "wicket_type" IS NOT NULL AND "wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+      THEN 1
+      ELSE 0
+    END AS "is_wicket"
+  FROM "Deliveries"
+),
+SequencedWickets AS (
+  SELECT
+    "match_id",
+    "bowler_id",
+    "is_wicket",
+    LAG("is_wicket", 1, 0) OVER (PARTITION BY "match_id", "bowler_id" ORDER BY "inning", "over_number", "ball_number") AS "prev_is_wicket",
+    LAG("is_wicket", 2, 0) OVER (PARTITION BY "match_id", "bowler_id" ORDER BY "inning", "over_number", "ball_number") AS "prev2_is_wicket"
+  FROM WicketDeliveries
+),
+HatTricks AS (
+  SELECT DISTINCT
+    "match_id",
+    "bowler_id"
+  FROM SequencedWickets
+  WHERE "is_wicket" = 1 AND "prev_is_wicket" = 1 AND "prev2_is_wicket" = 1
+)
+SELECT
+  T2."player_name"
+FROM HatTricks AS T1
+JOIN "Players" AS T2
+  ON T1."bowler_id" = T2."player_id"
+GROUP BY
+  T2."player_name"
+HAVING
+  COUNT(T1."match_id") > 1
+ORDER BY
+  COUNT(T1."match_id") DESC
+LIMIT 3;
+Result: [SUCCESS]
+[('A Mishra',), ('Yuvraj Singh',), ('YS Chahal',)]
+
+--- Entry #174 ---
+Question: list all instances of CSK getting all-out at Chepauk in IPL
+SQL: SELECT T1.match_date, CASE WHEN T1.team1 = 'Chennai Super Kings' THEN T1.team2 ELSE T1.team1 END FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1.match_id = T2.match_id WHERE T2.batting_team = 'Chennai Super Kings' AND T1.venue LIKE '%Chidambaram%' AND T2.player_out_id IS NOT NULL GROUP BY T2.match_id, T2.inning HAVING COUNT(T2.player_out_id) = 10
+Result: [SUCCESS]
+[('2012-04-04', 'Mumbai Indians'), ('2019-04-26', 'Mumbai Indians'), ('2025-04-25', 'Sunrisers Hyderabad'), ('2025-04-30', 'Punjab Kings')]
+
+--- Entry #175 ---
+Question: list all hat-tricks taken by a bowler against csk
+SQL: WITH BowlerDeliveries AS (
+  SELECT
+    "match_id",
+    "bowler_id",
+    "wicket_type",
+    LAG("wicket_type", 1) OVER (PARTITION BY "match_id", "inning", "bowler_id" ORDER BY "over_number", "ball_number") AS prev_wicket,
+    LEAD("wicket_type", 1) OVER (PARTITION BY "match_id", "inning", "bowler_id" ORDER BY "over_number", "ball_number") AS next_wicket
+  FROM "Deliveries"
+  WHERE
+    "batting_team" = 'Chennai Super Kings'
+)
+SELECT
+  T2."player_name"
+FROM BowlerDeliveries AS T1
+JOIN "Players" AS T2
+  ON T1."bowler_id" = T2."player_id"
+WHERE
+  T1."wicket_type" IS NOT NULL
+  AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+  AND T1.prev_wicket IS NOT NULL
+  AND T1.prev_wicket NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+  AND T1.next_wicket IS NOT NULL
+  AND T1.next_wicket NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+GROUP BY
+  T1."match_id",
+  T2."player_name";
+Result: [SUCCESS]
+[('YS Chahal',)]
+
+--- Entry #176 ---
+Question: list all deepak hooda's score in ipl 2025
+SQL: SELECT T2."match_date", T2."venue", SUM(T1."runs_scored") FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."striker_id" = T3."player_id" WHERE T3."player_name" LIKE 'DJ Hooda%' AND T2."season" = '2025' GROUP BY T1."match_id"
+Result: [SUCCESS]
+[('2025-03-23', 'MA Chidambaram Stadium, Chepauk, Chennai', 3), ('2025-03-28', 'MA Chidambaram Stadium, Chepauk, Chennai', 4), ('2025-04-11', 'MA Chidambaram Stadium, Chepauk, Chennai', 0), ('2025-04-25', 'MA Chidambaram Stadium, Chepauk, Chennai', 22), ('2025-04-30', 'MA Chidambaram Stadium, Chepauk, Chennai', 2)]
+
+--- Entry #177 ---
+Question: Least overs taken to complete a 200-plus chase in IPL.give the top 5 with teams of that match city and year
+SQL: WITH FirstInningsScores AS (
+  SELECT
+    "match_id"
+  FROM "Deliveries"
+  WHERE
+    "inning" = 1
+  GROUP BY
+    "match_id"
+  HAVING
+    SUM("runs_scored" + "extra_runs") >= 200
+), SecondInningsChase AS (
+  SELECT
+    "match_id",
+    COUNT(CASE WHEN "wides" = 0 AND "noballs" = 0 THEN 1 END) AS legal_balls
+  FROM "Deliveries"
+  WHERE
+    "inning" = 2
+  GROUP BY
+    "match_id"
+)
+SELECT
+  M."team1",
+  M."team2",
+  M."city",
+  SUBSTR(M."season", 1, 4) AS "year",
+  (S."legal_balls" / 6) || '.' || (S."legal_balls" % 6) AS "overs_taken"
+FROM "Matches" AS M
+JOIN "FirstInningsScores" AS F
+  ON M."match_id" = F."match_id"
+JOIN "SecondInningsChase" AS S
+  ON M."match_id" = S."match_id"
+WHERE
+  M."match_winner" = (
+    SELECT
+      "batting_team"
+    FROM "Deliveries" AS D
+    WHERE
+      D."match_id" = M."match_id" AND D."inning" = 2
+    LIMIT 1
+  )
+ORDER BY
+  S."legal_balls" ASC
+LIMIT 5;
+Result: [SUCCESS]
+[('Gujarat Titans', 'Chennai Super Kings', 'Ahmedabad', '2023', '15.0'), ('Gujarat Titans', 'Rajasthan Royals', 'Jaipur', '2025', '15.5'), ('Gujarat Titans', 'Royal Challengers Bengaluru', 'Ahmedabad', '2024', '16.0'), ('Delhi Daredevils', 'Gujarat Lions', 'Delhi', '2017', '17.3'), ('Sunrisers Hyderabad', 'Mumbai Indians', 'Mumbai', '2023', '18.0')]
+
+--- Entry #178 ---
+Question: list all Successful 200-plus run-chases for RR
+SQL: WITH FirstInningScores AS (
+  SELECT
+    "match_id",
+    "batting_team" AS opponent,
+    SUM("runs_scored" + "extra_runs") AS first_inning_score
+  FROM "Deliveries"
+  WHERE
+    "inning" = 1
+  GROUP BY
+    "match_id"
+)
+SELECT
+  T1."season",
+  T1."match_date",
+  T1."venue",
+  T2.opponent,
+  T2.first_inning_score + 1 AS target
+FROM "Matches" AS T1
+INNER JOIN FirstInningScores AS T2
+  ON T1."match_id" = T2."match_id"
+WHERE
+  T1."match_winner" = 'Rajasthan Royals' AND T1."match_winner" != T2.opponent AND T2.first_inning_score >= 200
+ORDER BY
+  T1."match_date" DESC;
+Result: [SUCCESS]
+[('2025', '2025-04-28', 'Sawai Mansingh Stadium, Jaipur', 'Gujarat Titans', 210), ('2024', '2024-04-16', 'Eden Gardens, Kolkata', 'Kolkata Knight Riders', 224), ('2020/21', '2020-09-27', 'Sharjah Cricket Stadium', 'Kings XI Punjab', 224), ('2007/08', '2008-04-24', 'Rajiv Gandhi International Stadium, Uppal', 'Deccan Chargers', 215)]
+
+--- Entry #179 ---
+Question: minimum innings taken by a player to score a century since their debut.list the player and the innings taken and the score in the century match
+SQL: WITH PlayerInnings AS (
+  SELECT
+    "striker_id",
+    "match_id",
+    SUM("runs_scored") AS "runs"
+  FROM "Deliveries"
+  GROUP BY
+    "striker_id",
+    "match_id"
+), RankedInnings AS (
+  SELECT
+    T1."striker_id",
+    T1."runs",
+    ROW_NUMBER() OVER (PARTITION BY T1."striker_id" ORDER BY T2."match_date") AS "inning_number"
+  FROM PlayerInnings AS T1
+  INNER JOIN "Matches" AS T2
+    ON T1."match_id" = T2."match_id"
+)
+SELECT
+  T4."player_name",
+  T3."inning_number",
+  T3."runs"
+FROM RankedInnings AS T3
+INNER JOIN "Players" AS T4
+  ON T3."striker_id" = T4."player_id"
+WHERE
+  T3."runs" >= 100 AND T3."inning_number" = (
+    SELECT
+      MIN("inning_number")
+    FROM RankedInnings
+    WHERE
+      "runs" >= 100
+  );
+Result: [SUCCESS]
+[('MEK Hussey', 1, 116), ('BB McCullum', 1, 158)]
+
+--- Entry #180 ---
+Question: highest partnership for any wicket for Rajasthan Royals.give the runs and players involved opposition and the year
+SQL: WITH PartnershipDetails AS (
+  SELECT
+    "match_id",
+    "inning",
+    "striker_id",
+    "non_striker_id",
+    "runs_scored",
+    "extra_runs",
+    COALESCE(SUM(CASE WHEN "wicket_type" IS NOT NULL THEN 1 ELSE 0 END) OVER (
+      PARTITION BY "match_id", "inning"
+      ORDER BY "over_number", "ball_number"
+      ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+    ), 0) AS partnership_group_id
+  FROM "Deliveries"
+  WHERE "batting_team" = 'Rajasthan Royals'
+),
+PartnershipRuns AS (
+  SELECT
+    "match_id",
+    "inning",
+    "partnership_group_id",
+    SUM("runs_scored" + "extra_runs") AS total_runs
+  FROM PartnershipDetails
+  GROUP BY "match_id", "inning", "partnership_group_id"
+),
+PartnershipPlayers AS (
+  SELECT
+    "match_id",
+    "inning",
+    "partnership_group_id",
+    "player_id"
+  FROM (
+    SELECT DISTINCT "match_id", "inning", "partnership_group_id", "striker_id" AS player_id FROM PartnershipDetails
+    UNION
+    SELECT DISTINCT "match_id", "inning", "partnership_group_id", "non_striker_id" AS player_id FROM PartnershipDetails
+  )
+),
+FullPartnerships AS (
+  SELECT
+    pr."match_id",
+    pr.total_runs,
+    GROUP_CONCAT(p."player_name", ', ') AS players
+  FROM PartnershipRuns AS pr
+  JOIN PartnershipPlayers AS pp
+    ON pr."match_id" = pp."match_id"
+    AND pr."inning" = pp."inning"
+    AND pr."partnership_group_id" = pp."partnership_group_id"
+  JOIN "Players" AS p
+    ON pp.player_id = p."player_id"
+  GROUP BY
+    pr."match_id",
+    pr."inning",
+    pr."partnership_group_id",
+    pr.total_runs
+  HAVING COUNT(pp.player_id) >= 2
+)
+SELECT
+  fp.total_runs AS "runs",
+  fp.players AS "players_involved",
+  CASE
+    WHEN m."team1" = 'Rajasthan Royals' THEN m."team2"
+    ELSE m."team1"
+  END AS "opposition",
+  m."season" AS "year"
+FROM FullPartnerships AS fp
+JOIN "Matches" AS m
+  ON fp."match_id" = m."match_id"
+ORDER BY
+  fp.total_runs DESC
+LIMIT 1;
+Result: [SUCCESS]
+[(166, 'V Suryavanshi, YBK Jaiswal', 'Gujarat Titans', '2025')]
+
+--- Entry #181 ---
+Question: 4 Fastest IPL 100s (by balls).give the player runs self and opposition team city and year
+SQL: WITH PlayerInnings AS (
+  SELECT
+    "striker_id",
+    "match_id",
+    SUM("runs_scored") AS total_runs
+  FROM "Deliveries"
+  GROUP BY
+    "striker_id",
+    "match_id"
+  HAVING
+    SUM("runs_scored") >= 100
+), CumulativeInnings AS (
+  SELECT
+    T1."match_id",
+    T1."striker_id",
+    T1."bowling_team",
+    SUM(T1."runs_scored") OVER (PARTITION BY T1."match_id", T1."striker_id" ORDER BY T1."over_number", T1."ball_number") AS cumulative_runs,
+    SUM(CASE WHEN T1."wides" = 0 THEN 1 ELSE 0 END) OVER (PARTITION BY T1."match_id", T1."striker_id" ORDER BY T1."over_number", T1."ball_number") AS balls_faced
+  FROM "Deliveries" AS T1
+  INNER JOIN PlayerInnings AS T2
+    ON T1."match_id" = T2."match_id" AND T1."striker_id" = T2."striker_id"
+), BallsTo100 AS (
+  SELECT
+    "match_id",
+    "striker_id",
+    "bowling_team",
+    balls_faced,
+    ROW_NUMBER() OVER (PARTITION BY "match_id", "striker_id" ORDER BY balls_faced) AS rn
+  FROM CumulativeInnings
+  WHERE
+    cumulative_runs >= 100
+)
+SELECT
+  T4."player_name",
+  T2.total_runs,
+  T1.balls_faced,
+  T1."bowling_team",
+  T3."city",
+  T3."season"
+FROM BallsTo100 AS T1
+JOIN PlayerInnings AS T2
+  ON T1."match_id" = T2."match_id" AND T1."striker_id" = T2."striker_id"
+JOIN "Matches" AS T3
+  ON T1."match_id" = T3."match_id"
+JOIN "Players" AS T4
+  ON T1."striker_id" = T4."player_id"
+WHERE
+  T1.rn = 1
+ORDER BY
+  T1.balls_faced ASC
+LIMIT 4;
+Result: [SUCCESS]
+[('CH Gayle', 175, 30, 'Pune Warriors', 'Bangalore', '2013'), ('V Suryavanshi', 101, 35, 'Gujarat Titans', 'Jaipur', '2025'), ('H Klaasen', 105, 37, 'Kolkata Knight Riders', 'Delhi', '2025'), ('YK Pathan', 100, 37, 'Mumbai Indians', 'Mumbai', '2009/10')]
+
+--- Entry #182 ---
+Question: list all instances for fastest team 100 for rr.list the opposition and the year and the overs taken for the 100
+SQL: WITH MatchProgress AS (
+  SELECT
+    "match_id",
+    "bowling_team",
+    SUM("runs_scored" + "extra_runs") OVER (PARTITION BY "match_id" ORDER BY "over_number", "ball_number") AS "cumulative_runs",
+    SUM(CASE WHEN "wides" = 0 AND "noballs" = 0 THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id" ORDER BY "over_number", "ball_number") AS "legal_deliveries_faced"
+  FROM "Deliveries"
+  WHERE
+    "batting_team" = 'Rajasthan Royals'
+), FirstToHundred AS (
+  SELECT
+    "match_id",
+    "bowling_team",
+    MIN("legal_deliveries_faced") AS "balls_to_100"
+  FROM MatchProgress
+  WHERE
+    "cumulative_runs" >= 100
+  GROUP BY
+    "match_id",
+    "bowling_team"
+)
+SELECT
+  T2."bowling_team" AS "opposition",
+  T3."season" AS "year",
+  (T2."balls_to_100" / 6) || '.' || (T2."balls_to_100" % 6) AS "overs_taken"
+FROM FirstToHundred AS T2
+JOIN "Matches" AS T3
+  ON T2."match_id" = T3."match_id"
+WHERE
+  T2."balls_to_100" = (
+    SELECT
+      MIN("balls_to_100")
+    FROM FirstToHundred
+  );
+Result: [SUCCESS]
+[('Punjab Kings', '2025', '7.3')]
+
+--- Entry #183 ---
+Question: which top 5 overs saw the most runs scored in them in ipl 2025.give the over, runs scored in it, average runs per over, wickets fallen
+SQL: SELECT T1.over_number, SUM(T1.runs_scored + T1.extra_runs) AS total_runs, CAST(SUM(T1.runs_scored + T1.extra_runs) AS REAL) / COUNT(DISTINCT T1.match_id || T1.inning) AS avg_runs_per_over, COUNT(T1.wicket_type) AS wickets_fallen FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T2.season = '2025' GROUP BY T1.over_number ORDER BY total_runs DESC LIMIT 5
+Result: [SUCCESS]
+[(5, 1512, 10.5, 27), (3, 1499, 10.409722222222221, 35), (2, 1458, 10.125, 40), (4, 1402, 9.73611111111111, 41), (17, 1368, 10.944, 53)]
+
+--- Entry #184 ---
+Question: which 5 bowler had the worst economy in powerplay in ipl 2025.out of those who bowled atleast 10 overs.give name and economy.
+SQL: SELECT T3."player_name", CAST(SUM(T1."runs_scored" + T1."wides" + T1."noballs") AS REAL) * 6.0 / COUNT(CASE WHEN T1."wides" = 0 AND T1."noballs" = 0 THEN 1 END) AS "economy" FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T1."bowler_id" = T3."player_id" WHERE T2."season" = '2025' AND T1."over_number" <= 5 GROUP BY T3."player_name" HAVING COUNT(CASE WHEN T1."wides" = 0 AND T1."noballs" = 0 THEN 1 END) >= 60 ORDER BY "economy" DESC LIMIT 5
+Result: [SUCCESS]
+[('Akash Deep', 12.083333333333334), ('Avesh Khan', 11.927710843373495), ('MA Starc', 11.358778625954198), ('TU Deshpande', 11.090909090909092), ('SN Thakur', 11.0625)]
+
+--- Entry #185 ---
+Question: which 4 players had Best batting average vs a team in IPL (min 500 runs).give the average, runs, the opponent and the player
+SQL: WITH PlayerAverages AS (
+  SELECT
+    T2."player_name",
+    T1."bowling_team",
+    SUM(T1."runs_scored") AS total_runs,
+    SUM(T1."runs_scored") * 1.0 / COUNT(CASE WHEN T1."player_out_id" = T1."striker_id" AND T1."wicket_type" NOT IN ('retired hurt', 'obstructing the field') THEN 1 END) AS batting_average
+  FROM "Deliveries" AS T1
+  JOIN "Players" AS T2
+    ON T1."striker_id" = T2."player_id"
+  GROUP BY
+    T1."striker_id",
+    T1."bowling_team"
+  HAVING
+    SUM(T1."runs_scored") >= 500
+    AND COUNT(CASE WHEN T1."player_out_id" = T1."striker_id" AND T1."wicket_type" NOT IN ('retired hurt', 'obstructing the field') THEN 1 END) > 0
+)
+SELECT
+  "player_name",
+  "bowling_team" AS "opponent",
+  total_runs,
+  batting_average
+FROM PlayerAverages
+WHERE batting_average >= (
+  SELECT batting_average
+  FROM PlayerAverages
+  ORDER BY batting_average DESC
+  LIMIT 1 OFFSET 3
+)
+ORDER BY batting_average DESC;
+Result: [SUCCESS]
+[('HH Pandya', 'Rajasthan Royals', 506, 72.28571428571429), ('KL Rahul', 'Royal Challengers Bangalore', 628, 69.77777777777777), ('V Kohli', 'Delhi Daredevils', 761, 69.18181818181819), ('KL Rahul', 'Mumbai Indians', 980, 65.33333333333333)]
+
+--- Entry #186 ---
+Question: 10 bowlers with Most wickets in the IPL
+SQL: SELECT
+  T2."player_name",
+  COUNT(T1."delivery_id") AS "total_wickets"
+FROM Deliveries AS T1
+INNER JOIN Players AS T2
+  ON T1."bowler_id" = T2."player_id"
+WHERE
+  T1."wicket_type" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+GROUP BY
+  T2."player_name"
+ORDER BY
+  "total_wickets" DESC
+LIMIT 10;
+Result: [SUCCESS]
+[('YS Chahal', 221), ('B Kumar', 198), ('SP Narine', 192), ('PP Chawla', 192), ('R Ashwin', 187), ('JJ Bumrah', 186), ('DJ Bravo', 183), ('A Mishra', 174), ('SL Malinga', 170), ('RA Jadeja', 170)]
+
+--- Entry #187 ---
+Question: the 4 best figures for a bowler against lsg
+SQL: SELECT
+  T2."player_name",
+  SUM(CASE WHEN T1."wicket_type" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') THEN 1 ELSE 0 END) AS "wickets",
+  SUM(T1."runs_scored" + T1."wides" + T1."noballs") AS "runs_conceded"
+FROM "Deliveries" AS T1
+INNER JOIN "Players" AS T2
+  ON T1."bowler_id" = T2."player_id"
+WHERE
+  T1."batting_team" = 'Lucknow Super Giants'
+GROUP BY
+  T1."match_id",
+  T2."player_name"
+HAVING
+  SUM(CASE WHEN T1."wicket_type" IS NOT NULL AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out') THEN 1 ELSE 0 END) > 0
+ORDER BY
+  "wickets" DESC,
+  "runs_conceded" ASC
+LIMIT 4;
+Result: [SUCCESS]
+[('Akash Madhwal', 5, 5), ('HH Pandya', 5, 36), ('JJ Bumrah', 4, 22), ('Rashid Khan', 4, 24)]
+
+--- Entry #188 ---
+Question: sa yadav's batting stats in mumbai.mention innings, runs,average,strike rate.
+SQL: SELECT T3."player_name", COUNT(DISTINCT T1."match_id") AS "innings", SUM(T2."runs_scored") AS "runs", CAST(SUM(T2."runs_scored") AS REAL) * 100 / COUNT(CASE WHEN T2."wides" = 0 THEN 1 END) AS "strike_rate", CAST(SUM(T2."runs_scored") AS REAL) / COUNT(CASE WHEN T2."player_out_id" = T3."player_id" THEN 1 END) AS "average" FROM Matches AS T1 INNER JOIN Deliveries AS T2 ON T1."match_id" = T2."match_id" INNER JOIN Players AS T3 ON T2."striker_id" = T3."player_id" WHERE T1."city" = 'Mumbai' AND T3."player_name" = 'SA Yadav' GROUP BY T3."player_name"
+Result: [SUCCESS]
+[('SA Yadav', 42, 1444, 163.718820861678, 41.25714285714286)]
+
+--- Entry #189 ---
+Question: sixes hit by every team in ipl 2025
+SQL: SELECT T1.batting_team, COUNT(T1.delivery_id) FROM Deliveries AS T1 INNER JOIN Matches AS T2 ON T1.match_id = T2.match_id WHERE T2.season = '2025' AND T1.runs_scored = 6 GROUP BY T1.batting_team ORDER BY COUNT(T1.delivery_id) DESC
+Result: [SUCCESS]
+[('Punjab Kings', 173), ('Lucknow Super Giants', 152), ('Rajasthan Royals', 146), ('Mumbai Indians', 143), ('Royal Challengers Bengaluru', 125), ('Gujarat Titans', 124), ('Sunrisers Hyderabad', 120), ('Delhi Capitals', 110), ('Chennai Super Kings', 102), ('Kolkata Knight Riders', 101)]
+
+--- Entry #190 ---
+Question: list the games in ipl 2025 where no sixes were hit in both innings of the powerplay
+SQL: SELECT "match_id", "venue", "match_date" FROM "Matches" WHERE "season" = '2025' AND "match_id" NOT IN (SELECT "match_id" FROM "Deliveries" WHERE "over_number" <= 5 AND "runs_scored" = 6)
+Result: [SUCCESS]
+[(1473480, 'MA Chidambaram Stadium, Chepauk, Chennai', '2025-04-25'), (1473492, 'Rajiv Gandhi International Stadium, Uppal, Hyderabad', '2025-05-05')]
+
+--- Entry #191 ---
+Question: which bowlers bowled the most wides in 2025.list the top 5
+SQL: SELECT T2."player_name", SUM(T1."wides") FROM Deliveries AS T1 INNER JOIN Players AS T2 ON T1."bowler_id" = T2."player_id" INNER JOIN Matches AS T3 ON T1."match_id" = T3."match_id" WHERE T3."season" = '2025' GROUP BY T2."player_name" ORDER BY SUM(T1."wides") DESC LIMIT 5
+Result: [SUCCESS]
+[('M Pathirana', 36), ('Mohammed Siraj', 30), ('M Theekshana', 24), ('HV Patel', 23), ('Arshdeep Singh', 22)]
+
+--- Entry #192 ---
+Question: which bowler has the most wickets in the 1st ball of the innings.mention the bowler and the players he has dismissed in those balls
+SQL: WITH WicketCounts AS (
+  SELECT
+    "bowler_id",
+    COUNT(*) AS WicketCount
+  FROM "Deliveries"
+  WHERE
+    "over_number" = 0
+    AND "ball_number" = 1
+    AND "wicket_type" IS NOT NULL
+    AND "wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out')
+  GROUP BY
+    "bowler_id"
+), TopBowlers AS (
+  SELECT
+    "bowler_id"
+  FROM WicketCounts
+  WHERE
+    WicketCount = (
+      SELECT
+        MAX(WicketCount)
+      FROM WicketCounts
+    )
+)
+SELECT
+  T3."player_name",
+  T4."player_name"
+FROM "Deliveries" AS T1
+INNER JOIN TopBowlers AS T2
+  ON T1."bowler_id" = T2."bowler_id"
+INNER JOIN "Players" AS T3
+  ON T1."bowler_id" = T3."player_id"
+INNER JOIN "Players" AS T4
+  ON T1."player_out_id" = T4."player_id"
+WHERE
+  T1."over_number" = 0
+  AND T1."ball_number" = 1
+  AND T1."wicket_type" IS NOT NULL
+  AND T1."wicket_type" NOT IN ('run out', 'retired hurt', 'obstructing the field', 'retired out');
+Result: [SUCCESS]
+[('Mohammed Shami', 'JH Kallis'), ('Mohammed Shami', 'KL Rahul'), ('Mohammed Shami', 'PD Salt'), ('Mohammed Shami', 'SK Rasheed')]
+
+--- Entry #193 ---
+Question: the 5 players with least strike rate to face 100+ balls in ipl 2025.mention the player, runs, balls, strike rate.
+SQL: SELECT
+  T2.player_name,
+  SUM(T1.runs_scored) AS runs,
+  COUNT(CASE WHEN T1.wides = 0 THEN 1 END) AS balls_faced,
+  SUM(T1.runs_scored) * 100.0 / COUNT(CASE WHEN T1.wides = 0 THEN 1 END) AS strike_rate
+FROM Deliveries AS T1
+INNER JOIN Players AS T2
+  ON T1.striker_id = T2.player_id
+INNER JOIN Matches AS T3
+  ON T1.match_id = T3.match_id
+WHERE
+  T3.season = '2025'
+GROUP BY
+  T2.player_name
+HAVING
+  COUNT(CASE WHEN T1.wides = 0 THEN 1 END) >= 100
+ORDER BY
+  strike_rate
+LIMIT 5;
+Result: [SUCCESS]
+[('Nithish Kumar Reddy', 182, 153, 118.95424836601308), ('F du Plessis', 202, 163, 123.92638036809817), ('DA Miller', 153, 120, 127.5), ('R Ravindra', 191, 149, 128.18791946308724), ('Q de Kock', 152, 117, 129.9145299145299)]
+
+--- Entry #194 ---
+Question: show rg sharma's batting stats while baatting first and batting second since 2024.give innings, runs, strike rate and average
+SQL: SELECT CASE WHEN T2.inning = 1 THEN 'Batting First' ELSE 'Batting Second' END, COUNT(DISTINCT T2.match_id), SUM(T2.runs_scored), CAST(SUM(T2.runs_scored) AS REAL) * 100 / COUNT(CASE WHEN T2.wides = 0 THEN 1 END), CAST(SUM(T2.runs_scored) AS REAL) / COUNT(CASE WHEN T2.player_out_id = T1.player_id AND T2.wicket_type NOT IN ('retired hurt', 'obstructing the field') THEN 1 END) FROM Players AS T1 INNER JOIN Deliveries AS T2 ON T1.player_id = T2.striker_id INNER JOIN Matches AS T3 ON T2.match_id = T3.match_id WHERE T1.player_name LIKE 'RG Sharma%' AND T3.match_date >= '2024-01-01' GROUP BY T2.inning
+Result: [SUCCESS]
+[('Batting First', 14, 303, 143.60189573459715, 21.642857142857142), ('Batting Second', 15, 532, 153.314121037464, 40.92307692307692)]
+
+--- Entry #195 ---
+Question: all instances of 140-plus totals after being 4 down for less than 15 in IPL.give score after 4 wickets down and then the final score and the team
+SQL: WITH InningProgress AS (
+  SELECT
+    "match_id",
+    "inning",
+    "batting_team",
+    "over_number",
+    "ball_number",
+    SUM("runs_scored" + "extra_runs") OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS cumulative_runs,
+    SUM(CASE WHEN "player_out_id" IS NOT NULL THEN 1 ELSE 0 END) OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS cumulative_wickets
+  FROM "Deliveries"
+), FourthWicketFall AS (
+  SELECT
+    "match_id",
+    "inning",
+    "batting_team",
+    "cumulative_runs" AS score_at_4_wickets
+  FROM (
+    SELECT
+      *,
+      ROW_NUMBER() OVER (PARTITION BY "match_id", "inning" ORDER BY "over_number", "ball_number") AS rn
+    FROM InningProgress
+    WHERE
+      "cumulative_wickets" = 4
+  )
+  WHERE
+    rn = 1
+), FinalScores AS (
+  SELECT
+    "match_id",
+    "inning",
+    SUM("runs_scored" + "extra_runs") AS final_score
+  FROM "Deliveries"
+  GROUP BY
+    "match_id",
+    "inning"
+)
+SELECT
+  T1."batting_team",
+  T1."score_at_4_wickets",
+  T2."final_score"
+FROM FourthWicketFall AS T1
+JOIN FinalScores AS T2
+  ON T1."match_id" = T2."match_id" AND T1."inning" = T2."inning"
+WHERE
+  T1."score_at_4_wickets" < 15 AND T2."final_score" >= 140;
+Result: [SUCCESS]
+[('Delhi Daredevils', 7, 146), ('Mumbai Indians', 7, 145), ('Chennai Super Kings', 7, 156), ('Punjab Kings', 14, 183), ('Sunrisers Hyderabad', 13, 143)]
+
+--- Entry #196 ---
+Question: 5 lowest Lowest PP scores for SRH that were played for complete 20 overs. give score wickets city and year
+SQL: WITH FullInnings AS (
+  SELECT
+    "match_id",
+    "inning"
+  FROM "Deliveries"
+  WHERE
+    (
+      CASE
+        WHEN "batting_team" IN ('Deccan Chargers', 'Sunrisers Hyderabad')
+        THEN 'Sunrisers Hyderabad'
+        ELSE "batting_team"
+      END
+    ) = 'Sunrisers Hyderabad'
+  GROUP BY
+    "match_id",
+    "inning"
+  HAVING
+    MAX("over_number") >= 19
+), PowerplayStats AS (
+  SELECT
+    "match_id",
+    "inning",
+    SUM("runs_scored" + "extra_runs") AS score,
+    COUNT("player_out_id") AS wickets
+  FROM "Deliveries"
+  WHERE
+    "over_number" <= 5
+  GROUP BY
+    "match_id",
+    "inning"
+)
+SELECT
+  T2.score,
+  T2.wickets,
+  T1.city,
+  T1.season AS year
+FROM "Matches" AS T1
+INNER JOIN PowerplayStats AS T2
+  ON T1.match_id = T2.match_id
+INNER JOIN FullInnings AS T3
+  ON T2.match_id = T3.match_id
+  AND T2.inning = T3.inning
+ORDER BY
+  T2.score ASC
+LIMIT 5;
+Result: [SUCCESS]
+[(14, 3, 'Pune', '2022'), (20, 3, 'Kochi', '2011'), (20, 2, 'Sharjah', '2021'), (21, 3, 'Hyderabad', '2013'), (23, 2, 'Mumbai', '2009/10')]
+
+--- Entry #197 ---
+Question: 5 players with most player of the match awards.
+SQL: SELECT T2."player_name", COUNT(T1."match_id") FROM Matches AS T1 INNER JOIN Players AS T2 ON T1."player_of_match_id" = T2."player_id" GROUP BY T2."player_name" ORDER BY COUNT(T1."match_id") DESC LIMIT 5
+Result: [SUCCESS]
+[('AB de Villiers', 25), ('CH Gayle', 22), ('RG Sharma', 21), ('V Kohli', 19), ('MS Dhoni', 18)]
+
+--- Entry #198 ---
+Question: list all 100+ partnerships in mi vs csk matches.
+SQL: WITH PartnershipDetails AS (
+  SELECT
+    T1.match_id,
+    T1.inning,
+    T1.over_number,
+    T1.ball_number,
+    MIN(T1.striker_id, T1.non_striker_id) AS p1_id,
+    MAX(T1.striker_id, T1.non_striker_id) AS p2_id,
+    T1.runs_scored + T1.extra_runs AS total_runs
+  FROM Deliveries AS T1
+  INNER JOIN Matches AS T2
+    ON T1.match_id = T2.match_id
+  WHERE
+    (
+      T2.team1 = 'Mumbai Indians' AND T2.team2 = 'Chennai Super Kings'
+    ) OR (
+      T2.team1 = 'Chennai Super Kings' AND T2.team2 = 'Mumbai Indians'
+    )
+), PartnershipChange AS (
+  SELECT
+    *,
+    CASE
+      WHEN p1_id != LAG(p1_id, 1, 0) OVER (PARTITION BY match_id, inning ORDER BY over_number, ball_number) OR p2_id != LAG(p2_id, 1, 0) OVER (PARTITION BY match_id, inning ORDER BY over_number, ball_number)
+      THEN 1
+      ELSE 0
+    END AS is_new_partnership
+  FROM PartnershipDetails
+), PartnershipGroup AS (
+  SELECT
+    *,
+    SUM(is_new_partnership) OVER (PARTITION BY match_id, inning ORDER BY over_number, ball_number) AS partnership_id
+  FROM PartnershipChange
+)
+SELECT
+  T4.player_name,
+  T5.player_name,
+  SUM(T3.total_runs) AS partnership_runs
+FROM PartnershipGroup AS T3
+INNER JOIN Players AS T4
+  ON T3.p1_id = T4.player_id
+INNER JOIN Players AS T5
+  ON T3.p2_id = T5.player_id
+GROUP BY
+  T3.match_id,
+  T3.inning,
+  T3.partnership_id,
+  T4.player_name,
+  T5.player_name
+HAVING
+  partnership_runs >= 100
+ORDER BY
+  partnership_runs DESC;
+Result: [SUCCESS]
+[('SK Raina', 'S Badrinath', 142), ('SK Raina', 'MEK Hussey', 140), ('RG Sharma', 'SR Tendulkar', 126), ('RG Sharma', 'LMP Simmons', 119), ('Q de Kock', 'Ishan Kishan', 116), ('F du Plessis', 'AT Rayudu', 115), ('SA Yadav', 'RG Sharma', 114), ('DR Smith', 'BB McCullum', 109), ('F du Plessis', 'MM Ali', 108), ('SK Raina', 'ML Hayden', 104), ('AT Rayudu', 'RA Jadeja', 102)]
+
+--- Entry #199 ---
+Question: 4 players with Most 50+ scores against CSK in IPL
+SQL: SELECT
+  T2."player_name",
+  COUNT(T1."striker_id") AS "fifty_plus_count"
+FROM (
+  SELECT
+    "striker_id"
+  FROM "Deliveries"
+  WHERE
+    "bowling_team" = 'Chennai Super Kings'
+  GROUP BY
+    "striker_id",
+    "match_id"
+  HAVING
+    SUM("runs_scored") >= 50
+) AS T1
+JOIN "Players" AS T2
+  ON T1."striker_id" = T2."player_id"
+GROUP BY
+  T2."player_name"
+ORDER BY
+  "fifty_plus_count" DESC
+LIMIT 4;
+Result: [SUCCESS]
+[('V Kohli', 10), ('S Dhawan', 9), ('RG Sharma', 9), ('DA Warner', 9)]
+
+--- Entry #200 ---
+Question: how are Dhoni's stats against jj Bumrah in IPL.give balls runs dismissals avg
+SQL: SELECT SUM(T1."runs_scored"), COUNT(CASE WHEN T1."wides" = 0 THEN 1 END), COUNT(CASE WHEN T1."player_out_id" = T1."striker_id" THEN 1 END) FROM "Deliveries" AS T1 WHERE T1."striker_id" = (SELECT "player_id" FROM "Players" WHERE "player_name" = 'MS Dhoni') AND T1."bowler_id" = (SELECT "player_id" FROM "Players" WHERE "player_name" = 'JJ Bumrah')
+Result: [SUCCESS]
+[(62, 65, 4)]
+

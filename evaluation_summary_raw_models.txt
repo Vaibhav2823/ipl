@@ -1,0 +1,169 @@
+CRICBENCH RAW EVALUATION REPORT (NO ROUTER)
+Generated: 2025-12-23 11:27:40.184184
+============================================================
+MODEL: claude-3-7-sonnet-latest (RAW / NO-ROUTER)
+----------------------------------------
+Total Queries: 478
+Avg Latency:   6.28s per query
+
+METRICS:
+  Execution Success:  395/478 (82.6%)
+  Schema Compliance:  393/478 (82.2%)
+  Data Match Score:   193.5/478 (40.5%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 40.1%
+  Hindi_1   : 38.7%
+  Hindi_2   : 46.0%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 2
+  Row Count Mismatch  : 104
+  Value Mismatch      : 123
+  Execution Error     : 83
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 34 (11.9% of failures)
+  Legal Delivery Logic     : 16 (5.6% of failures)
+  Incorrect Aggregation    : 1 (0.4% of failures)
+
+============================================================
+MODEL: deepseek_deepseek-r1 (RAW / NO-ROUTER)
+----------------------------------------
+Total Queries: 478
+Avg Latency:   79.65s per query
+
+METRICS:
+  Execution Success:  460/478 (96.2%)
+  Schema Compliance:  454/478 (95.0%)
+  Data Match Score:   203.5/478 (42.6%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 42.3%
+  Hindi_1   : 39.3%
+  Hindi_2   : 51.7%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 5
+  Row Count Mismatch  : 150
+  Value Mismatch      : 136
+  Execution Error     : 18
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 43 (15.7% of failures)
+  Legal Delivery Logic     : 1 (0.4% of failures)
+  Team Entity Resolution   : 2 (0.7% of failures)
+  Incorrect Aggregation    : 2 (0.7% of failures)
+
+============================================================
+MODEL: google_gemma-2-9b-it (RAW / NO-ROUTER)
+----------------------------------------
+Total Queries: 478
+Avg Latency:   3.14s per query
+
+METRICS:
+  Execution Success:  315/478 (65.9%)
+  Schema Compliance:  212/478 (44.4%)
+  Data Match Score:   27.4/478 (5.7%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 8.0%
+  Hindi_1   : 4.1%
+  Hindi_2   : 3.8%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 101
+  Row Count Mismatch  : 130
+  Value Mismatch      : 58
+  Execution Error     : 163
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 25 (5.5% of failures)
+  Legal Delivery Logic     : 17 (3.8% of failures)
+  Incorrect Aggregation    : 1 (0.2% of failures)
+
+============================================================
+MODEL: gpt-4o (RAW / NO-ROUTER)
+----------------------------------------
+Total Queries: 478
+Avg Latency:   3.00s per query
+
+METRICS:
+  Execution Success:  423/478 (88.5%)
+  Schema Compliance:  415/478 (86.8%)
+  Data Match Score:   93.6/478 (19.6%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 20.7%
+  Hindi_1   : 17.7%
+  Hindi_2   : 21.5%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 8
+  Row Count Mismatch  : 182
+  Value Mismatch      : 159
+  Execution Error     : 55
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 24 (6.2% of failures)
+  Legal Delivery Logic     : 17 (4.4% of failures)
+  Incorrect Aggregation    : 3 (0.8% of failures)
+
+============================================================
+MODEL: meta-llama_llama-3.1-8b-instruct (RAW / NO-ROUTER)
+----------------------------------------
+Total Queries: 478
+Avg Latency:   9.99s per query
+
+METRICS:
+  Execution Success:  254/478 (53.1%)
+  Schema Compliance:  206/478 (43.1%)
+  Data Match Score:   11.2/478 (2.3%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 3.8%
+  Hindi_1   : 0.8%
+  Hindi_2   : 2.6%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 47
+  Row Count Mismatch  : 141
+  Value Mismatch      : 57
+  Execution Error     : 224
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 3 (0.6% of failures)
+  Legal Delivery Logic     : 17 (3.6% of failures)
+  Team Entity Resolution   : 1 (0.2% of failures)
+  Phase Filtering          : 4 (0.9% of failures)
+  Incorrect Aggregation    : 2 (0.4% of failures)
+
+============================================================
+MODEL: qwen_qwen-2.5-7b-instruct (RAW / NO-ROUTER)
+----------------------------------------
+Total Queries: 478
+Avg Latency:   5.46s per query
+
+METRICS:
+  Execution Success:  269/478 (56.3%)
+  Schema Compliance:  170/478 (35.6%)
+  Data Match Score:   13.7/478 (2.9%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 4.5%
+  Hindi_1   : 1.8%
+  Hindi_2   : 1.3%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 94
+  Row Count Mismatch  : 101
+  Value Mismatch      : 62
+  Execution Error     : 209
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 17 (3.7% of failures)
+  Legal Delivery Logic     : 19 (4.1% of failures)
+  Phase Filtering          : 2 (0.4% of failures)
+  Incorrect Aggregation    : 1 (0.2% of failures)
+
+============================================================

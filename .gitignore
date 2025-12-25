@@ -1,0 +1,16 @@
+# --- Large Data & Benchmarks ---
+data/
+benchmarks/
+benchmarks_bird/
+benchmarks_raw/
+bird/
+logs/
+
+# --- Private Scripts ---
+scripts/query_database.py
+
+# --- System & Python junk ---
+__pycache__/
+*.pyc
+.env
+.DS_Store

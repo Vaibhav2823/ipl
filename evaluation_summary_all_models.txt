@@ -1,0 +1,161 @@
+CRICBENCH COMPREHENSIVE REPORT
+Generated: 2025-12-23 11:28:21.596896
+============================================================
+MODEL: claude-3-7-sonnet-latest
+----------------------------------------
+Total Queries: 478
+Avg Latency:   7.77s per query
+
+METRICS:
+  Execution Success:  420/478 (87.9%)
+  Schema Compliance:  418/478 (87.4%)
+  Data Match Score:   228.2/478 (47.7%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 48.8%
+  Hindi_1   : 45.8%
+  Hindi_2   : 50.1%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 2
+  Row Count Mismatch  : 91
+  Value Mismatch      : 135
+  Execution Error     : 58
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 32 (12.8% of failures)
+  Incorrect Aggregation    : 2 (0.8% of failures)
+
+============================================================
+MODEL: deepseek_deepseek-r1
+----------------------------------------
+Total Queries: 478
+Avg Latency:   81.88s per query
+
+METRICS:
+  Execution Success:  469/478 (98.1%)
+  Schema Compliance:  462/478 (96.7%)
+  Data Match Score:   241.8/478 (50.6%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 51.9%
+  Hindi_1   : 47.5%
+  Hindi_2   : 55.0%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 6
+  Row Count Mismatch  : 128
+  Value Mismatch      : 128
+  Execution Error     : 9
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 25 (10.6% of failures)
+  Incorrect Aggregation    : 3 (1.3% of failures)
+
+============================================================
+MODEL: google_gemma-2-9b-it
+----------------------------------------
+Total Queries: 478
+Avg Latency:   8.04s per query
+
+METRICS:
+  Execution Success:  335/478 (70.1%)
+  Schema Compliance:  108/478 (22.6%)
+  Data Match Score:   18.6/478 (3.9%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 4.0%
+  Hindi_1   : 3.8%
+  Hindi_2   : 3.8%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 222
+  Row Count Mismatch  : 73
+  Value Mismatch      : 23
+  Execution Error     : 143
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 46 (10.0% of failures)
+  Team Entity Resolution   : 1 (0.2% of failures)
+  Incorrect Aggregation    : 1 (0.2% of failures)
+
+============================================================
+MODEL: gpt-4o
+----------------------------------------
+Total Queries: 478
+Avg Latency:   3.78s per query
+
+METRICS:
+  Execution Success:  423/478 (88.5%)
+  Schema Compliance:  411/478 (86.0%)
+  Data Match Score:   160.9/478 (33.7%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 37.3%
+  Hindi_1   : 28.0%
+  Hindi_2   : 38.7%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 9
+  Row Count Mismatch  : 158
+  Value Mismatch      : 120
+  Execution Error     : 55
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 15 (4.7% of failures)
+  Incorrect Aggregation    : 2 (0.6% of failures)
+
+============================================================
+MODEL: meta-llama_llama-3.1-8b-instruct
+----------------------------------------
+Total Queries: 478
+Avg Latency:   7.92s per query
+
+METRICS:
+  Execution Success:  307/478 (64.2%)
+  Schema Compliance:  111/478 (23.2%)
+  Data Match Score:   13.4/478 (2.8%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 3.9%
+  Hindi_1   : 2.1%
+  Hindi_2   : 1.9%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 191
+  Row Count Mismatch  : 69
+  Value Mismatch      : 38
+  Execution Error     : 171
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 47 (10.1% of failures)
+  Legal Delivery Logic     : 1 (0.2% of failures)
+
+============================================================
+MODEL: qwen_qwen-2.5-7b-instruct
+----------------------------------------
+Total Queries: 478
+Avg Latency:   7.11s per query
+
+METRICS:
+  Execution Success:  252/478 (52.7%)
+  Schema Compliance:  103/478 (21.5%)
+  Data Match Score:   23.2/478 (4.8%)
+
+LANGUAGE BREAKDOWN (Data Match %):
+  English   : 4.6%
+  Hindi_1   : 5.0%
+  Hindi_2   : 5.1%
+
+BASIC FAILURE COUNTS:
+  Schema Mismatch     : 139
+  Row Count Mismatch  : 57
+  Value Mismatch      : 38
+  Execution Error     : 226
+
+FORENSIC ERROR ANALYSIS (Semantic Causes):
+  Hallucinated Schema      : 63 (13.9% of failures)
+  Legal Delivery Logic     : 2 (0.4% of failures)
+  Incorrect Aggregation    : 1 (0.2% of failures)
+
+============================================================
