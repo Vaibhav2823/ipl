@@ -1,5 +1,5 @@
 # --- Large Data & Benchmarks ---
-data/
+data/raw/
 benchmarks/
 benchmarks_bird/
 benchmarks_raw/
